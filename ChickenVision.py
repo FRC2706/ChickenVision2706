@@ -16,8 +16,6 @@ import time
 import sys
 from threading import Thread
 
-import cscore
-
 from cscore import CameraServer, VideoSource
 from networktables import NetworkTablesInstance
 import cv2
@@ -73,7 +71,7 @@ class VideoShow:
         self.stopped = False
 
     def start(self):
-        Thread(self.show).start()
+        Thread(target=self.show, args=()).start()
         return self
 
     def show(self):
@@ -98,7 +96,7 @@ class WebcamVideoStream:
         self.autoExpose = False
         self.prevValue = self.autoExpose
         #Make a blank image to write on
-        self.img = np.zeros((frameWidth, frameHeight, 3), np.uint8)
+        self.img = np.zeros(shape=(frameWidth, frameHeight, 3), dtype=np.uint8)
         #Gets the video
         self.stream = cameraServer.getVideo()
         (self.timestamp, self.img) = self.stream.grabFrame(self.img)
@@ -112,7 +110,7 @@ class WebcamVideoStream:
 
     def start(self):
         # start the thread to read frames from the video stream
-        t = Thread(self.update, self.name)
+        t = Thread(target=self.update, name=self.name, args=())
         t.daemon = True
         t.start()
         return self
@@ -170,13 +168,13 @@ verticalView = math.atan(math.tan(diagonalView/2) * (verticalAspect / diagonalAs
 #Focal Length calculations: https://docs.google.com/presentation/d/1ediRsI-oR3-kwawFJZ34_ZTlQS2SDBLjZasjzZ-eXbQ/pub?start=false&loop=false&slide=id.g12c083cffa_0_165
 H_FOCAL_LENGTH = image_width / (2*math.tan((horizontalView/2)))
 V_FOCAL_LENGTH = image_height / (2*math.tan((verticalView/2)))
-#blurs have to be odd
-green_blur = 7
+# blurs have to be odd
+green_blur = 1
 orange_blur = 27
 
 # define range of green of retroreflective tape in HSV
-lower_green = np.array([65,220,25])
-upper_green = np.array([105, 255, 255])
+lower_green = np.array([55, 128, 133])
+upper_green = np.array([109, 255, 255])
 #define range of orange from cargo ball in HSV
 lower_orange = np.array([0,193,92])
 upper_orange = np.array([23, 255, 255])
@@ -211,9 +209,6 @@ def threshold_video(lower_color, upper_color, blur):
 # Finds the tape targets from the masked image and displays them on original stream + network tales
 def findTargets(frame, mask):
     # Finds contours
-
-    #return mask
-
     _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
     # Take each frame
     # Gets the shape of video
@@ -252,13 +247,13 @@ def findCargo(frame, mask):
 # centerX is center x coordinate of image
 # centerY is center y coordinate of image
 def findBall(contours, image, centerX, centerY):
-    screenHeight, screenWidth, channels = image.shape;
+    screenHeight, screenWidth, channels = image.shape
     #Seen vision targets (correct angle, adjacent to each other)
     cargo = []
 
     if len(contours) > 0:
         #Sort contours by area size (biggest to smallest)
-        cntsSorted = sorted(contours, lambda x: cv2.contourArea(x), True)
+        cntsSorted = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
 
         biggestCargo = []
         for cnt in cntsSorted:
@@ -315,11 +310,8 @@ def findBall(contours, image, centerX, centerY):
                     cv2.circle(image, center, radius, (23, 184, 80), 1)
 
                     # Appends important info to array
-                    if not biggestCargo:
-                        biggestCargo.append([cx, cy, cnt])
-                    elif [cx, cy, cnt] not in biggestCargo:
-                        biggestCargo.append([cx, cy, cnt])
-
+                    if [cx, cy, cnt] not in biggestCargo:
+                         biggestCargo.append([cx, cy, cnt])
 
 
 
@@ -329,11 +321,12 @@ def findBall(contours, image, centerX, centerY):
             networkTable.putBoolean("cargoDetected", True)
 
             # Sorts targets based on x coords to break any angle tie
-            biggestCargo.sort(lambda x: math.fabs(x[0]))
-            closestCargo = min(biggestCargo, lambda x: (math.fabs(x[0] - centerX)))
+            biggestCargo.sort(key=lambda x: math.fabs(x[0]))
+            closestCargo = min(biggestCargo, key=lambda x: (math.fabs(x[0] - centerX)))
             xCoord = closestCargo[0]
             finalTarget = calculateYaw(xCoord, centerX, H_FOCAL_LENGTH)
             print("Yaw: " + str(finalTarget))
+            networkTable.putString("Yaw", finalTarget)
             # Puts the yaw on screen
             # Draws yaw of target + line where center of target is
             cv2.putText(image, "Yaw: " + str(finalTarget), (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6,
@@ -356,16 +349,13 @@ def findBall(contours, image, centerX, centerY):
 # centerX is center x coordinate of image
 # centerY is center y coordinate of image
 def findTape(contours, image, centerX, centerY):
-    screenHeight, screenWidth, channels = image.shape;
+    screenHeight, screenWidth, channels = image.shape
     #Seen vision targets (correct angle, adjacent to each other)
     targets = []
 
-    theCX = 0
-    theCY = 0
-
     if len(contours) >= 2:
         #Sort contours by area size (biggest to smallest)
-        cntsSorted = sorted(contours, lambda x: cv2.contourArea(x), True)
+        cntsSorted = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
 
         biggestCnts = []
         for cnt in cntsSorted:
@@ -378,16 +368,12 @@ def findTape(contours, image, centerX, centerY):
             # calculate area of convex hull
             hullArea = cv2.contourArea(hull)
             # Filters contours based off of size
-
-
             if (checkContours(cntArea, hullArea)):
                 ### MOSTLY DRAWING CODE, BUT CALCULATES IMPORTANT INFO ###
                 # Gets the centeroids of contour
                 if M["m00"] != 0:
                     cx = int(M["m10"] / M["m00"])
                     cy = int(M["m01"] / M["m00"])
-                    theCX = cx
-                    theCY = cy
                 else:
                     cx, cy = 0, 0
                 if(len(biggestCnts) < 13):
@@ -398,8 +384,6 @@ def findTape(contours, image, centerX, centerY):
                     yaw = calculateYaw(cx, centerX, H_FOCAL_LENGTH)
                     # Calculates yaw of contour (horizontal position in degrees)
                     pitch = calculatePitch(cy, centerY, V_FOCAL_LENGTH)
-                    # Calculates Distance
-                    dist = calculateDistance(1, 2, pitch);
 
                     ##### DRAWS CONTOUR######
                     # Gets rotated bounding rectangle of contour
@@ -416,8 +400,6 @@ def findTape(contours, image, centerX, centerY):
                     yaw = calculateYaw(cx, centerX, H_FOCAL_LENGTH)
                     # Calculates yaw of contour (horizontal position in degrees)
                     pitch = calculatePitch(cy, centerY, V_FOCAL_LENGTH)
-                    # Calculates Distance
-                    dist = calculateDistance(1, 2, pitch);
 
 
                     # Draws a vertical white line passing through center of contour
@@ -443,14 +425,12 @@ def findTape(contours, image, centerX, centerY):
                     cv2.circle(image, center, radius, (23, 184, 80), 1)
 
                     # Appends important info to array
-                    if not biggestCnts:
-                         biggestCnts.append([cx, cy, rotation, cnt])
-                    elif [cx, cy, rotation, cnt] not in biggestCnts:
+                    if [cx, cy, rotation, cnt] not in biggestCnts:
                          biggestCnts.append([cx, cy, rotation, cnt])
 
 
         # Sorts array based on coordinates (leftmost to rightmost) to make sure contours are adjacent
-        biggestCnts = sorted(biggestCnts, lambda x: x[0])
+        biggestCnts = sorted(biggestCnts, key=lambda x: x[0])
         # Target Checking
         for i in range(len(biggestCnts) - 1):
             #Rotation of two adjacent contours
@@ -469,7 +449,6 @@ def findTape(contours, image, centerX, centerY):
                 #ellipse negative tilt means rotated to right
                 #Note: if using rotated rect (min area rectangle)
                 #      negative tilt means rotated to left
-
                 # If left contour rotation is tilted to the left then skip iteration
                 if (tilt1 > 0):
                     if (cx1 < cx2):
@@ -478,38 +457,27 @@ def findTape(contours, image, centerX, centerY):
                 if (tilt2 > 0):
                     if (cx2 < cx1):
                         continue
-
                 #Angle from center of camera to target (what you should pass into gyro)
                 yawToTarget = calculateYaw(centerOfTarget, centerX, H_FOCAL_LENGTH)
-                pitchToTarget = calculatePitch(theCY, centerY, H_FOCAL_LENGTH)
-                distToTarget = calculateDistance(1, 2, pitchToTarget)
-
                 #Make sure no duplicates, then append
-                if not targets:
-                    targets.append([centerOfTarget, yawToTarget, distToTarget])
-                elif [centerOfTarget, yawToTarget, distToTarget] not in targets:
-                    targets.append([centerOfTarget, yawToTarget, distToTarget])
+                if [centerOfTarget, yawToTarget] not in targets:
+                    targets.append([centerOfTarget, yawToTarget])
     #Check if there are targets seen
     if (len(targets) > 0):
         # pushes that it sees vision target to network tables
         networkTable.putBoolean("tapeDetected", True)
         #Sorts targets based on x coords to break any angle tie
-        targets.sort(lambda x: math.fabs(x[0]))
-        finalTarget = min(targets, lambda x: math.fabs(x[1]))
+        targets.sort(key=lambda x: math.fabs(x[0]))
+        finalTarget = min(targets, key=lambda x: math.fabs(x[1]))
         # Puts the yaw on screen
         #Draws yaw of target + line where center of target is
         cv2.putText(image, "Yaw: " + str(finalTarget[1]), (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6,
-                    (255, 255, 255))
-        cv2.putText(image, "Dist: " + str(finalTarget[2]), (40, 90), cv2.FONT_HERSHEY_COMPLEX, .6,
                     (255, 255, 255))
         cv2.line(image, (finalTarget[0], screenHeight), (finalTarget[0], 0), (255, 0, 0), 2)
 
         currentAngleError = finalTarget[1]
         # pushes vision target angle to network tables
         networkTable.putNumber("tapeYaw", currentAngleError)
-
-        #pushes distance to network table
-        networkTable.putNumber("distance", finalTarget[2])
     else:
         # pushes that it deosn't see vision target to network tables
         networkTable.putBoolean("tapeDetected", False)
@@ -545,11 +513,8 @@ def calculateDistance(heightOfCamera, heightOfTarget, pitch):
     d = distance
     h = height between camera and target
     a = angle = pitch
-
     tan a = h/d (opposite over adjacent)
-
     d = h / tan a
-
                          .
                         /|
                        / |
@@ -615,7 +580,7 @@ configFile = "/boot/frc.json"
 
 class CameraConfig: pass
 
-team = None
+team = 3216
 server = False
 cameraConfigs = []
 
@@ -736,28 +701,31 @@ if __name__ == "__main__":
     cameraServer = streams[0]
     #Start thread reading camera
     cap = WebcamVideoStream(webcam, cameraServer, image_width, image_height).start()
-
+    # cap = cap.findTape
     # (optional) Setup a CvSource. This will send images back to the Dashboard
     # Allocating new images is very expensive, always try to preallocate
-    img = np.zeros((image_height, image_width, 3), np.uint8)
+    img = np.zeros(shape=(image_height, image_width, 3), dtype=np.uint8)
     #Start thread outputing stream
-    streamViewer = VideoShow(image_width,image_height, cameraServer, img).start()
+    
+    streamViewer = VideoShow(image_width,image_height, cameraServer, frame=img).start()
     #cap.autoExpose=True;
-    tape = False
+    tape = True
     fps = FPS().start()
     #TOTAL_FRAMES = 200;
     # loop forever
     while True:
+        
         # Tell the CvSink to grab a frame from the camera and put it
         # in the source image.  If there is an error notify the output.
-        timestamp, img = cap.read()
+        timestamp, processed = cap.read()
         #Uncomment if camera is mounted upside down
         #frame = flipImage(img)
         #Comment out if camera is mounted upside down
+        # img = findCargo(frame,img)
         frame = img
         if timestamp == 0:
             # Send the output the error.
-            streamViewer.notifyError(cap.getError());
+            streamViewer.notifyError(cap.getError())
             # skip the rest of the current iteration
             continue
         #Checks if you just want camera for driver (No processing), False by default
@@ -766,8 +734,9 @@ if __name__ == "__main__":
             processed = frame
         else:
             # Checks if you just want camera for Tape processing , False by default
-            if tape:
-                #Lowers exposure to 0
+            # Switched to True, default is False
+            if(networkTable.getBoolean("Tape", True)):
+                # Lowers exposure to 0
                 cap.autoExpose = False
                 boxBlur = blurImg(frame, green_blur)
                 threshold = threshold_video(lower_green, upper_green, boxBlur)
@@ -780,6 +749,8 @@ if __name__ == "__main__":
                 processed = findCargo(frame, threshold)
         #Puts timestamp of camera on netowrk tables
         networkTable.putNumber("VideoTimestamp", timestamp)
+        
+        # networkTable.putBoolean("Driver", False)
         streamViewer.frame = processed
         # update the FPS counter
         fps.update()
@@ -790,8 +761,3 @@ if __name__ == "__main__":
     fps.stop()
     print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
     print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
-
-
-
-
-
