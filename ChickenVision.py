@@ -374,6 +374,8 @@ def findTape(contours, image, centerX, centerY):
                 if M["m00"] != 0:
                     cx = int(M["m10"] / M["m00"])
                     cy = int(M["m01"] / M["m00"])
+                    theCX = cx
+                    theCY = cy
                 else:
                     cx, cy = 0, 0
                 if(len(biggestCnts) < 13):
@@ -384,6 +386,9 @@ def findTape(contours, image, centerX, centerY):
                     yaw = calculateYaw(cx, centerX, H_FOCAL_LENGTH)
                     # Calculates yaw of contour (horizontal position in degrees)
                     pitch = calculatePitch(cy, centerY, V_FOCAL_LENGTH)
+                    # Calculates Distance
+                    dist = calculateDistance(1, 2, pitch);
+
 
                     ##### DRAWS CONTOUR######
                     # Gets rotated bounding rectangle of contour
@@ -400,6 +405,8 @@ def findTape(contours, image, centerX, centerY):
                     yaw = calculateYaw(cx, centerX, H_FOCAL_LENGTH)
                     # Calculates yaw of contour (horizontal position in degrees)
                     pitch = calculatePitch(cy, centerY, V_FOCAL_LENGTH)
+                    # Calculates Distance
+                    dist = calculateDistance(1, 2, pitch);
 
 
                     # Draws a vertical white line passing through center of contour
@@ -459,9 +466,12 @@ def findTape(contours, image, centerX, centerY):
                         continue
                 #Angle from center of camera to target (what you should pass into gyro)
                 yawToTarget = calculateYaw(centerOfTarget, centerX, H_FOCAL_LENGTH)
+                pitchToTarget = calculatePitch(theCY, centerY, H_FOCAL_LENGTH)
+                distToTarget = calculateDistance(1, 2, pitchToTarget)
+
                 #Make sure no duplicates, then append
-                if [centerOfTarget, yawToTarget] not in targets:
-                    targets.append([centerOfTarget, yawToTarget])
+                if [centerOfTarget, yawToTarget,distToTarget] not in targets:
+                    targets.append([centerOfTarget, yawToTarget,distToTarget])
     #Check if there are targets seen
     if (len(targets) > 0):
         # pushes that it sees vision target to network tables
@@ -473,11 +483,16 @@ def findTape(contours, image, centerX, centerY):
         #Draws yaw of target + line where center of target is
         cv2.putText(image, "Yaw: " + str(finalTarget[1]), (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6,
                     (255, 255, 255))
+        cv2.putText(image, "Dist: " + str(finalTarget[2]), (40, 90), cv2.FONT_HERSHEY_COMPLEX, .6,
+                    (255, 255, 255))
         cv2.line(image, (finalTarget[0], screenHeight), (finalTarget[0], 0), (255, 0, 0), 2)
 
         currentAngleError = finalTarget[1]
         # pushes vision target angle to network tables
         networkTable.putNumber("tapeYaw", currentAngleError)
+
+        #pushes distance to network table
+        networkTable.putNumber("distance", finalTarget[2])
     else:
         # pushes that it deosn't see vision target to network tables
         networkTable.putBoolean("tapeDetected", False)
@@ -580,7 +595,7 @@ configFile = "/boot/frc.json"
 
 class CameraConfig: pass
 
-team = 3216
+team = 2706
 server = False
 cameraConfigs = []
 
