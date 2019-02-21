@@ -66,7 +66,7 @@ class VideoShow:
     """
 
     def __init__(self, imgWidth, imgHeight, cameraServer, frame=None):
-        self.outputStream = cameraServer.putVideo("stream", imgWidth, imgHeight)
+        self.outputStream = cameraServer.putVideo("stream_john", imgWidth, imgHeight)
         self.frame = frame
         self.stopped = False
 
@@ -173,8 +173,8 @@ green_blur = 1
 orange_blur = 27
 
 # define range of green of retroreflective tape in HSV
-lower_green = np.array([55, 128, 133])
-upper_green = np.array([109, 255, 255])
+lower_green = np.array([60, 89, 71])
+upper_green = np.array([96, 255, 255])
 #define range of orange from cargo ball in HSV
 lower_orange = np.array([0,193,92])
 upper_orange = np.array([23, 255, 255])
@@ -538,7 +538,10 @@ def calculateDistance(heightOfCamera, heightOfTarget, pitch):
               camera -----
                        d
     '''
-    distance = math.fabs(heightOfTargetFromCamera / math.tan(math.radians(pitch)))
+    divisor = math.tan(math.radians(pitch))
+    distance = 0
+    if (divisor != 0):
+        distance = math.fabs(heightOfTargetFromCamera / divisor)
 
     return distance
 
@@ -721,18 +724,21 @@ if __name__ == "__main__":
     # Allocating new images is very expensive, always try to preallocate
     img = np.zeros(shape=(image_height, image_width, 3), dtype=np.uint8)
     #Start thread outputing stream
-    
     streamViewer = VideoShow(image_width,image_height, cameraServer, frame=img).start()
     #cap.autoExpose=True;
     tape = True
     fps = FPS().start()
     #TOTAL_FRAMES = 200;
     # loop forever
+    networkTable.putBoolean("Driver", False)
+    networkTable.putBoolean("Tape", False)
+    switch = 0
+
     while True:
         
         # Tell the CvSink to grab a frame from the camera and put it
         # in the source image.  If there is an error notify the output.
-        timestamp, processed = cap.read()
+        timestamp, img = cap.read()
         #Uncomment if camera is mounted upside down
         #frame = flipImage(img)
         #Comment out if camera is mounted upside down
@@ -744,28 +750,40 @@ if __name__ == "__main__":
             # skip the rest of the current iteration
             continue
         #Checks if you just want camera for driver (No processing), False by default
-        if(networkTable.getBoolean("Driver", False)):
-            cap.autoExpose = True
+        if(networkTable.getBoolean("Driver", True)):
+            if switch!=1:
+                print("no processing")
+                switch=1
+            cap.autoExpose = False
+            #cv2.putText(frame, "No Process", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
             processed = frame
         else:
             # Checks if you just want camera for Tape processing , False by default
             # Switched to True, default is False
             if(networkTable.getBoolean("Tape", True)):
+                if switch!=2:
+                    print("finding tape")
+                    switch=2
                 # Lowers exposure to 0
                 cap.autoExpose = False
                 boxBlur = blurImg(frame, green_blur)
+                #cv2.putText(frame, "Find Tape", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
                 threshold = threshold_video(lower_green, upper_green, boxBlur)
                 processed = findTargets(frame, threshold)
             else:
                 # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
+                if switch!=3:
+                    print("find cargo")
+                    switch=3
                 cap.autoExpose = True
                 boxBlur = blurImg(frame, orange_blur)
+                #cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
                 threshold = threshold_video(lower_orange, upper_orange, boxBlur)
                 processed = findCargo(frame, threshold)
         #Puts timestamp of camera on netowrk tables
         networkTable.putNumber("VideoTimestamp", timestamp)
         
-        # networkTable.putBoolean("Driver", False)
+        #networkTable.putBoolean("Driver", True)
         streamViewer.frame = processed
         # update the FPS counter
         fps.update()
