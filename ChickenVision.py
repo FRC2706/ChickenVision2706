@@ -21,6 +21,7 @@ from networktables import NetworkTablesInstance
 import cv2
 import numpy as np
 from networktables import NetworkTables
+from networktables.util import ntproperty
 import math
 ########### SET RESOLUTION TO 256x144 !!!! ############
 
@@ -173,7 +174,7 @@ green_blur = 1
 orange_blur = 27
 
 # define range of green of retroreflective tape in HSV
-lower_green = np.array([60, 89, 71])
+lower_green = np.array([40, 19, 80])
 upper_green = np.array([96, 255, 255])
 #define range of orange from cargo ball in HSV
 lower_orange = np.array([0,193,92])
@@ -493,6 +494,9 @@ def findTape(contours, image, centerX, centerY):
 
         #pushes distance to network table
         networkTable.putNumber("distance", finalTarget[2])
+
+        #vectorCameraToTarget = ntproperty('/PathFinder/vectorCameraToTarget',[currentAngleError,finalTarget[2])
+        #networkTable.putNumber("vectorCameraToTarget",[currentAngleError,finalTarget[2]])
     else:
         # pushes that it deosn't see vision target to network tables
         networkTable.putBoolean("tapeDetected", False)
