@@ -562,7 +562,8 @@ def calculateDistWPILib(cntHeight):
     TARGET_HEIGHT = 2.625
     Y_RES = 144
     VIEWANGLE = 68.5
-    distance = (TARGET_HEIGHT * Y_RES) / (2 * cntHeight * math.tan(VIEWANGLE))
+    OFFCONST = -2.17/12
+    distance = ((TARGET_HEIGHT * Y_RES) / (2 * cntHeight * math.tan(VIEWANGLE))) * OFFCONST
     return distance
 
 
@@ -778,6 +779,9 @@ if __name__ == "__main__":
         # frame = flipImage(img)
         # Comment out if camera is mounted upside down
         # img = findCargo(frame,img)
+
+
+
         frame = img
         if timestamp == 0:
             # Send the output the error.
