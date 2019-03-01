@@ -501,7 +501,7 @@ def findTape(contours, image, centerX, centerY):
         # pushes distance to network table
         networkTable.putNumber("distance", finalTarget[2])
 
-        # vectorCameraToTarget = ntproperty('/PathFinder/vectorCameraToTarget',[currentAngleError,finalTarget[2])
+        vectorCameraToTarget = ntproperty('/PathFinder/vectorCameraToTarget',[currentAngleError,finalTarget[2]])
         # networkTable.putNumber("vectorCameraToTarget",[currentAngleError,finalTarget[2]])
     else:
         # pushes that it deosn't see vision target to network tables
@@ -561,9 +561,8 @@ def calculateDistance(heightOfCamera, heightOfTarget, pitch):
 def calculateDistWPILib(cntHeight):
     TARGET_HEIGHT = 2.625
     Y_RES = 144
-    VIEWANGLE = 68.5
-    OFFCONST = -2.17/12
-    distance = ((TARGET_HEIGHT * Y_RES) / (2 * cntHeight * math.tan(VIEWANGLE))) * OFFCONST
+    VIEWANGLE = math.radians(68.5)
+    distance = ((TARGET_HEIGHT * Y_RES) / (2 * cntHeight * math.tan(VIEWANGLE))) 
     return distance
 
 
@@ -768,7 +767,9 @@ if __name__ == "__main__":
     # loop forever
     networkTable.putBoolean("Driver", False)
     networkTable.putBoolean("Tape", False)
+    networkTable.putBoolean("Cargo", False)
     switch = 0
+    processed = 0
 
     while True:
 
@@ -810,15 +811,18 @@ if __name__ == "__main__":
                 threshold = threshold_video(lower_green, upper_green, boxBlur)
                 processed = findTargets(frame, threshold)
             else:
-                # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
-                if switch != 3:
-                    print("find cargo")
-                    switch = 3
-                cap.autoExpose = True
-                boxBlur = blurImg(frame, orange_blur)
-                # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
-                threshold = threshold_video(lower_orange, upper_orange, boxBlur)
-                processed = findCargo(frame, threshold)
+                if (networkTable.getBoolean("Cargo", True)):
+                    # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
+                    #if (networkTable.getBoolean("Cargo", True)):
+                    if switch != 3:
+                        print("find cargo")
+                        switch = 3
+                    cap.autoExpose = True
+                    boxBlur = blurImg(frame, orange_blur)
+                    # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
+                    threshold = threshold_video(lower_orange, upper_orange, boxBlur)
+                    processed = findCargo(frame, threshold)
+
         # Puts timestamp of camera on netowrk tables
         networkTable.putNumber("VideoTimestamp", timestamp)
 
