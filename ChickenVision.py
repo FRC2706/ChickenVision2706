@@ -25,7 +25,6 @@ from networktables.util import ntproperty
 import math
 ########### SET RESOLUTION TO 256x144 !!!! ############
 
-
 # import the necessary packages
 import datetime
 
@@ -152,6 +151,9 @@ class WebcamVideoStream:
 
 
 ###################### PROCESSING OPENCV ################################
+
+# counts frames for writing images
+frameStop = 0
 
 # Angles in radians
 
@@ -768,6 +770,7 @@ if __name__ == "__main__":
     networkTable.putBoolean("Driver", False)
     networkTable.putBoolean("Tape", False)
     networkTable.putBoolean("Cargo", False)
+    networkTable.putBoolean("WriteImages", False)
     switch = 0
     processed = 0
 
@@ -825,6 +828,12 @@ if __name__ == "__main__":
 
         # Puts timestamp of camera on netowrk tables
         networkTable.putNumber("VideoTimestamp", timestamp)
+	
+        if (networkTable.getBoolean("WriteImages", True)):
+            frameStop = frameStop + 1
+            if frameStop == 15 :
+                cv2.imwrite('/mnt/visionImg.png', processed)
+                frameStop = 0
 
         # networkTable.putBoolean("Driver", True)
         streamViewer.frame = processed
