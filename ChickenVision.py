@@ -69,7 +69,7 @@ class VideoShow:
     """
 
     def __init__(self, imgWidth, imgHeight, cameraServer, frame=None):
-        self.outputStream = cameraServer.putVideo("stream_john", imgWidth, imgHeight)
+        self.outputStream = cameraServer.putVideo("stream_ishan", imgWidth, imgHeight)
         self.frame = frame
         self.stopped = False
 
@@ -154,6 +154,7 @@ class WebcamVideoStream:
 
 # counts frames for writing images
 frameStop = 0
+ImageCounter = 0
 
 # Angles in radians
 
@@ -832,8 +833,11 @@ if __name__ == "__main__":
         if (networkTable.getBoolean("WriteImages", True)):
             frameStop = frameStop + 1
             if frameStop == 15 :
-                cv2.imwrite('/mnt/visionImg.png', processed)
+                cv2.imwrite('/mnt/VisionImages/visionImg' +str(ImageCounter)+ '.png', processed)
                 frameStop = 0
+                ImageCounter = ImageCounter+1
+                if (ImageCounter==1000):
+                    ImageCounter=0
 
         # networkTable.putBoolean("Driver", True)
         streamViewer.frame = processed
