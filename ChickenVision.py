@@ -184,7 +184,7 @@ green_blur = 1
 orange_blur = 27
 
 # define range of green of retroreflective tape in HSV
-lower_green = np.array([40, 19, 80])
+lower_green = np.array([40, 75, 75])
 upper_green = np.array([96, 255, 255])
 # define range of orange from cargo ball in HSV
 lower_orange = np.array([0, 193, 92])
@@ -202,6 +202,12 @@ def blurImg(frame, blur_radius):
     blur = cv2.blur(img, (blur_radius, blur_radius))
     return blur
 
+def threshold_range(im, lo, hi):
+    unused, t1 = cv2.threshold(im, lo, 255, type=cv2.THRESH_BINARY)
+    unused, t2 = cv2.threshold(im, hi, 255, type=cv2.THRESH_BINARY_INV)
+    return cv2.bitwise_and(t1, t2)
+
+
 
 # Masks the video based on a range of hsv colors
 # Takes in a frame, range of color, and a blurred frame, returns a masked frame
@@ -209,16 +215,26 @@ def threshold_video(lower_color, upper_color, blur):
     # Convert BGR to HSV
     hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
 
+    h, s, v = cv2.split(hsv)
+
+    h = threshold_range(h, lower_color[0], upper_color[0])
+    s = threshold_range(s, lower_color[1], upper_color[1])
+    v = threshold_range(v, lower_color[2], upper_color[2])
+    combined_mask = cv2.bitwise_and(h, cv2.bitwise_and(s,v))
+    
     # hold the HSV image to get only red colors
-    mask = cv2.inRange(hsv, lower_color, upper_color)
+    #mask = cv2.inRange(combined, lower_color, upper_color)
 
     # Returns the masked imageBlurs video to smooth out image
 
-    return mask
+    return combined_mask
 
 
 # Finds the tape targets from the masked image and displays them on original stream + network tales
 def findTargets(frame, mask):
+
+    #return mask
+
     # Finds contours
     _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
     # Take each frame
@@ -772,6 +788,8 @@ if __name__ == "__main__":
     networkTable.putBoolean("Tape", False)
     networkTable.putBoolean("Cargo", False)
     networkTable.putBoolean("WriteImages", False)
+    networkTable.putBoolean("SendMask", False)
+    
     switch = 0
     processed = 0
 
