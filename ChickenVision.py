@@ -159,8 +159,8 @@ ImageCounter = 0
 # Angles in radians
 
 # image size ratioed to 16:9
-image_width = 256
-image_height = 144
+image_width = 424
+image_height = 240
 
 # Lifecam 3000 from datasheet
 # Datasheet: https://dl2jx7zfbtwvr.cloudfront.net/specsheets/WEBC1010.pdf
@@ -226,7 +226,10 @@ def threshold_video(lower_color, upper_color, blur):
     #mask = cv2.inRange(combined, lower_color, upper_color)
 
     # Returns the masked imageBlurs video to smooth out image
-
+    if frameStop == 0:
+        global ImageCounter
+        ImageCounter += 1
+        cv2.imwrite('/mnt/VisionImages/visionImg' +str(ImageCounter)+ '.png', combined_mask)
     return combined_mask
 
 
@@ -278,14 +281,15 @@ def findBall(contours, image, centerX, centerY):
     screenHeight, screenWidth, channels = image.shape
     # Seen vision targets (correct angle, adjacent to each other)
     cargo = []
-
+    
     if len(contours) > 0:
         # Sort contours by area size (biggest to smallest)
         cntsSorted = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
-
+        cntHeight = 0
         biggestCargo = []
         for cnt in cntsSorted:
             x, y, w, h = cv2.boundingRect(cnt)
+            cntHeight = h
             aspect_ratio = float(w) / h
             # Get moments of contour; mainly for centroid
             M = cv2.moments(cnt)
@@ -337,28 +341,32 @@ def findBall(contours, image, centerX, centerY):
                     cv2.circle(image, center, radius, (23, 184, 80), 1)
 
                     # Appends important info to array
-                    if [cx, cy, cnt] not in biggestCargo:
-                        biggestCargo.append([cx, cy, cnt])
+                    if [cx, cy, cnt, cntHeight] not in biggestCargo:
+                        biggestCargo.append([cx, cy, cnt, cntHeight])
 
         # Check if there are cargo seen
         if (len(biggestCargo) > 0):
             # pushes that it sees cargo to network tables
             networkTable.putBoolean("cargoDetected", True)
-
+            finalTarget = []
             # Sorts targets based on x coords to break any angle tie
             biggestCargo.sort(key=lambda x: math.fabs(x[0]))
             closestCargo = min(biggestCargo, key=lambda x: (math.fabs(x[0] - centerX)))
             xCoord = closestCargo[0]
-            finalTarget = calculateYaw(xCoord, centerX, H_FOCAL_LENGTH)
-            print("Yaw: " + str(finalTarget))
-            networkTable.putString("Yaw", finalTarget)
+            finalTarget.append(calculateYaw(xCoord, centerX, H_FOCAL_LENGTH))
+            finalTarget.append(calculateDistWPILib(closestCargo[3]))
+            print("Yaw: " + str(finalTarget[0]))
+            networkTable.putString("Yaw", finalTarget[0])
+            networkTable.putString("Dist:", finalTarget[1])
             # Puts the yaw on screen
             # Draws yaw of target + line where center of target is
-            cv2.putText(image, "Yaw: " + str(finalTarget), (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6,
+            cv2.putText(image, "Yaw: " + str(finalTarget[0]), (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6,
+                        (255, 255, 255))
+            cv2.putText(image, "Dist: " + str(finalTarget[1]), (40, 100), cv2.FONT_HERSHEY_COMPLEX, .6,
                         (255, 255, 255))
             cv2.line(image, (xCoord, screenHeight), (xCoord, 0), (255, 0, 0), 2)
 
-            currentAngleError = finalTarget
+            currentAngleError = finalTarget[0]
             # pushes cargo angle to network tables
             networkTable.putNumber("cargoYaw", currentAngleError)
 
@@ -578,10 +586,11 @@ def calculateDistance(heightOfCamera, heightOfTarget, pitch):
 
 
 def calculateDistWPILib(cntHeight):
+    global image_height
     TARGET_HEIGHT = 2.625
-    Y_RES = 144
+    
     VIEWANGLE = math.radians(68.5)
-    distance = ((TARGET_HEIGHT * Y_RES) / (2 * cntHeight * math.tan(VIEWANGLE))) 
+    distance = ((TARGET_HEIGHT * image_height) / (2 * cntHeight * math.tan(VIEWANGLE))) 
     return distance
 
 
@@ -785,10 +794,11 @@ if __name__ == "__main__":
     # TOTAL_FRAMES = 200;
     # loop forever
     networkTable.putBoolean("Driver", False)
-    networkTable.putBoolean("Tape", False)
+    networkTable.putBoolean("Tape", True)
     networkTable.putBoolean("Cargo", False)
-    networkTable.putBoolean("WriteImages", False)
+    networkTable.putBoolean("WriteImages", True)
     networkTable.putBoolean("SendMask", False)
+    networkTable.putBoolean("TopCamera", True)
     
     switch = 0
     processed = 0
@@ -798,14 +808,20 @@ if __name__ == "__main__":
         # Tell the CvSink to grab a frame from the camera and put it
         # in the source image.  If there is an error notify the output.
         timestamp, img = cap.read()
+        if frameStop == 0:
+            ImageCounter += 1
+            cv2.imwrite('/mnt/VisionImages/visionImg' +str(ImageCounter)+ '.png', img)
         # Uncomment if camera is mounted upside down
-        # frame = flipImage(img)
+        if networkTable.getBoolean("TopCamera", False):
+            frame = flipImage(img)
+        else:
+            frame = img
         # Comment out if camera is mounted upside down
         # img = findCargo(frame,img)
 
 
 
-        frame = img
+        
         if timestamp == 0:
             # Send the output the error.
             streamViewer.notifyError(cap.getError())
@@ -854,7 +870,7 @@ if __name__ == "__main__":
                 cv2.imwrite('/mnt/VisionImages/visionImg' +str(ImageCounter)+ '.png', processed)
                 frameStop = 0
                 ImageCounter = ImageCounter+1
-                if (ImageCounter==1000):
+                if (ImageCounter==10000):
                     ImageCounter=0
 
         # networkTable.putBoolean("Driver", True)
