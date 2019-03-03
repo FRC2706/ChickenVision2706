@@ -587,9 +587,8 @@ def calculateDistance(heightOfCamera, heightOfTarget, pitch):
 
 def calculateDistWPILib(cntHeight):
     global image_height
-    TARGET_HEIGHT = 2.625
-    
-    VIEWANGLE = math.radians(68.5)
+    TARGET_HEIGHT = 0.5
+    VIEWANGLE = math.arctan(TARGET_HEIGHT * image_height/(2 * cntHeight * 6)) #math.radians(68.5)
     distance = ((TARGET_HEIGHT * image_height) / (2 * cntHeight * math.tan(VIEWANGLE))) 
     return distance
 
