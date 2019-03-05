@@ -435,6 +435,7 @@ def findTape(contours, image, centerX, centerY):
                     # Not exactly sure
                     box = np.int0(box)
                     # Draws rotated rectangle
+
                     cv2.drawContours(image, [box], 0, (23, 184, 80), 3)
 
                     # Calculates yaw of contour (horizontal position in degrees)
@@ -587,9 +588,15 @@ def calculateDistance(heightOfCamera, heightOfTarget, pitch):
 
 def calculateDistWPILib(cntHeight):
     global image_height
+    #print("The contour height is: ", cntHeight)
     TARGET_HEIGHT = 0.5
-    VIEWANGLE = math.arctan(TARGET_HEIGHT * image_height/(2 * cntHeight * 6)) #math.radians(68.5)
-    distance = ((TARGET_HEIGHT * image_height) / (2 * cntHeight * math.tan(VIEWANGLE))) 
+    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height)/(2 * 37 * 5))
+    #print(VIEWANGLE)
+    #VIEWANGLE = math.radians(68.5)
+    distance = ((TARGET_HEIGHT * image_height) / (2 * cntHeight * math.tan(VIEWANGLE)))
+
+    distance = (-(500/124227) * distance**2) + ((119765/124227) * distance) + (905/41409)
+
     return distance
 
 
