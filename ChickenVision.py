@@ -96,7 +96,7 @@ class WebcamVideoStream:
 
         # Automatically sets exposure to 0 to track tape
         self.webcam = camera
-        self.webcam.setExposureManual(0)
+        self.webcam.setExposureManual(20)
         # Some booleans so that we don't keep setting exposure over and over to the same value
         self.autoExpose = False
         self.prevValue = self.autoExpose
@@ -134,7 +134,7 @@ class WebcamVideoStream:
             else:
                 if (self.autoExpose != self.prevValue):
                     self.prevValue = self.autoExpose
-                    self.webcam.setExposureManual(0)
+                    self.webcam.setExposureManual(20)
             # gets the image and timestamp from cameraserver
             (self.timestamp, self.img) = self.stream.grabFrame(self.img)
 
@@ -226,6 +226,7 @@ def threshold_video(lower_color, upper_color, blur):
     #mask = cv2.inRange(combined, lower_color, upper_color)
 
     # Returns the masked imageBlurs video to smooth out image
+    global frameStop
     if frameStop == 0:
         global ImageCounter
         ImageCounter += 1
