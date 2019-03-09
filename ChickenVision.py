@@ -227,7 +227,7 @@ def threshold_video(lower_color, upper_color, blur):
 
     # Returns the masked imageBlurs video to smooth out image
     global frameStop
-    if frameStop == 0:
+    if frameStop == 1:
         global ImageCounter
         ImageCounter += 1
         cv2.imwrite('/mnt/VisionImages/visionImg' +str(ImageCounter)+ '.png', combined_mask)
