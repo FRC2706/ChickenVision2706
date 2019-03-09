@@ -97,7 +97,9 @@ class WebcamVideoStream:
         # Automatically sets exposure to 0 to track tape
         self.webcam = camera
         self.webcam.setExposureManual(20)
+
         # Some booleans so that we don't keep setting exposure over and over to the same value
+
         self.autoExpose = False
         self.prevValue = self.autoExpose
         # Make a blank image to write on
@@ -159,8 +161,8 @@ ImageCounter = 0
 # Angles in radians
 
 # image size ratioed to 16:9
-image_width = 424
-image_height = 240
+image_width = 448
+image_height = 252
 
 # Lifecam 3000 from datasheet
 # Datasheet: https://dl2jx7zfbtwvr.cloudfront.net/specsheets/WEBC1010.pdf
@@ -191,8 +193,8 @@ upper_green = np.array([96, 255, 255])
 lower_orange = np.array([0, 193, 92])
 upper_orange = np.array([23, 255, 255])
 
-lower_yellow = np.array([0, 193, 92])
-upper_yellow = np.array([23, 255, 255])
+lower_yellow = np.array([36, 50, 80])
+upper_yellow = np.array([55, 120, 120])
 
 
 # Flip image if camera mounted upside down
@@ -245,6 +247,20 @@ def findTargets(frame, mask):
 
     # Finds contours
     _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
+
+    contours = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
+
+    biggestContourArea = float(cv2.contourArea(contours[0]))
+
+    goodContours = []
+
+    for cnts in contours:
+        if cv2.contourArea(cnts) >= biggestContourArea/2:
+            goodContours.append(cnts)
+
+    contours = np.array(goodContours)
+
+
     # Take each frame
     # Gets the shape of video
     screenHeight, screenWidth, _ = frame.shape
@@ -516,6 +532,18 @@ def findTape(contours, image, centerX, centerY):
     if len(contours) >= 2:
         # Sort contours by area size (biggest to smallest)
         cntsSorted = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
+        """global image_height
+
+        remove = 0
+
+        for cnt in cntsSorted:
+            x, y, w, cntHeight = cv2.boundingRect(cnt)
+            if y > image_height - 100:
+                remove = cnt
+                break
+
+        cntsSorted = np.delete(cntsSorted, [np.where(cntsSorted == remove)])"""
+
 
         cntHeight = 0
 
@@ -530,7 +558,26 @@ def findTape(contours, image, centerX, centerY):
             # calculate area of convex hull
             hullArea = cv2.contourArea(hull)
 
+
+
             x, y, w, cntHeight = cv2.boundingRect(cnt)
+
+            print("1", x, y, w, cntHeight)
+
+            pts, dim, a = cv2.minAreaRect(cnt)
+
+            x = pts[0]
+            y = pts[1]
+
+            w = dim[0]
+            cntHeight = dim[1]
+
+            print("2", x, y, w, cntHeight)
+
+            print("")
+
+
+            #print("The contour height is, ", cntHeight)
             # Filters contours based off of size
             if (checkContours(cntArea, hullArea)):
                 ### MOSTLY DRAWING CODE, BUT CALCULATES IMPORTANT INFO ###
@@ -719,12 +766,22 @@ def calculateDistWPILib(cntHeight):
     global image_height
     #print("The contour height is: ", cntHeight)
     TARGET_HEIGHT = 0.5
-    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height)/(2 * 37 * 5))
-    #print(VIEWANGLE)
+
+    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 37 * 5))
+
+    #print("before: ", VIEWANGLE)
+    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height)/(2 * 23 * 7.5))
+
+    #print("after: ", VIEWANGLE)
+
+    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 13.86362075805664 * 6))
+
+    #print("after 2: ", VIEWANGLE)
     #VIEWANGLE = math.radians(68.5)
     distance = ((TARGET_HEIGHT * image_height) / (2 * cntHeight * math.tan(VIEWANGLE)))
 
-    distance = (-(500/124227) * distance**2) + ((119765/124227) * distance) + (905/41409)
+    #distance = ((9859/450000) * distance**2) + ((59709/100000) * distance) + (5592/3125)
+    #distance = ((-4929500000000/142901956972299) * distance**2) + ((227390051005000/14290195697299) * distance) - (33940456739929/13609710187838)
 
     return distance
 
@@ -929,12 +986,12 @@ if __name__ == "__main__":
     # TOTAL_FRAMES = 200;
     # loop forever
     networkTable.putBoolean("Driver", False)
-    networkTable.putBoolean("Tape", False)
+    networkTable.putBoolean("Tape", True)
     networkTable.putBoolean("Cargo", False)
-    networkTable.putBoolean("Hatch", False)
+    networkTable.putBoolean("Hatch", True)
     networkTable.putBoolean("WriteImages", True)
     networkTable.putBoolean("SendMask", False)
-    networkTable.putBoolean("TopCamera", True)
+    networkTable.putBoolean("TopCamera", False)
     
     switch = 0
     processed = 0
