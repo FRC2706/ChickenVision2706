@@ -100,8 +100,8 @@ class WebcamVideoStream:
 
         # Some booleans so that we don't keep setting exposure over and over to the same value
 
-        self.autoExpose = False
-        self.prevValue = self.autoExpose
+        self.autoExpose = True
+        self.prevValue = True
         # Make a blank image to write on
         self.img = np.zeros(shape=(frameWidth, frameHeight, 3), dtype=np.uint8)
         # Gets the video
@@ -126,9 +126,10 @@ class WebcamVideoStream:
         # keep looping infinitely until the thread is stopped
         while True:
             # if the thread indicator variable is set, stop the thread
+            global switch
             if self.stopped:
                 return
-            # Boolean logic we don't keep setting exposure over and over to the same value
+            """# Boolean logic we don't keep setting exposure over and over to the same value
             if self.autoExpose:
                 if (self.autoExpose != self.prevValue):
                     self.prevValue = self.autoExpose
@@ -136,7 +137,24 @@ class WebcamVideoStream:
             else:
                 if (self.autoExpose != self.prevValue):
                     self.prevValue = self.autoExpose
-                    self.webcam.setExposureManual(20)
+                    self.webcam.setExposureManual(20)"""
+            if switch == 1: #driver mode
+                self.autoExpose = True
+                print("Driver mode")
+                if self.autoExpose != self.prevValue:
+                    cap.webcam.setExposureManual(50)
+                    cap.webcam.setExposureManual(35)
+                    print("Driver mode")
+                    self.prevValue = self.autoExpose
+            elif switch != 1: #not driver mode
+                self.autoExpose = False
+                print("Not driver mode")
+                if self.autoExpose != self.prevValue:
+                    cap.webcam.setExposureManual(50)
+                    cap.webcam.setExposureManual(20)
+                    print("Not driver mode")
+                    self.prevValue = self.autoExpose
+
             # gets the image and timestamp from cameraserver
             (self.timestamp, self.img) = self.stream.grabFrame(self.img)
 
@@ -196,6 +214,8 @@ upper_orange = np.array([23, 255, 255])
 lower_yellow = np.array([36, 50, 80])
 upper_yellow = np.array([55, 120, 120])
 
+switch = 1
+
 
 # Flip image if camera mounted upside down
 def flipImage(frame):
@@ -254,11 +274,26 @@ def findTargets(frame, mask):
 
     goodContours = []
 
+    print("contour list length", len(contours))
+
     for cnts in contours:
+        _, dim, _ = cv2.minAreaRect(cnts)
+        dim = [dim[0], dim[1]]
+
+        if dim[0] > dim[1]:
+            dim[0], dim[1] = dim[1], dim[0]
         if cv2.contourArea(cnts) >= biggestContourArea/2:
-            goodContours.append(cnts)
+            ratio = dim[1] / dim[0]
+
+            print("contour measurements: ", ratio, dim[0], dim[1])
+            print("")
+
+            if ratio < 2.5 and ratio > 1.5:
+                goodContours.append(cnts)
 
     contours = np.array(goodContours)
+
+    print("contour list length 2: ", len(contours))
 
 
     # Take each frame
@@ -985,15 +1020,15 @@ if __name__ == "__main__":
     fps = FPS().start()
     # TOTAL_FRAMES = 200;
     # loop forever
-    networkTable.putBoolean("Driver", False)
-    networkTable.putBoolean("Tape", True)
+    networkTable.putBoolean("Driver", True)
+    networkTable.putBoolean("Tape", False)
     networkTable.putBoolean("Cargo", False)
-    networkTable.putBoolean("Hatch", True)
+    networkTable.putBoolean("Hatch", False)
     networkTable.putBoolean("WriteImages", True)
     networkTable.putBoolean("SendMask", False)
     networkTable.putBoolean("TopCamera", False)
     
-    switch = 0
+
     processed = 0
 
     while True:
@@ -1025,18 +1060,23 @@ if __name__ == "__main__":
             if switch != 1:
                 print("no processing")
                 switch = 1
-            cap.autoExpose = False
+            #cap.autoExpose = True
+            #cap.webcam.setExposureManual(50)
+            #cap.webcam.setExposureManual(35)
             # cv2.putText(frame, "No Process", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
             processed = frame
         else:
             # Checks if you just want camera for Tape processing , False by default
             # Switched to True, default is False
+            switch = 0
             if (networkTable.getBoolean("Tape", True)):
                 if switch != 2:
                     print("finding tape")
-                    switch = 2
+                switch = 2
                 # Lowers exposure to 0
-                cap.autoExpose = False
+                #cap.autoExpose = False
+                #cap.webcam.setExposureManual(50)
+                #cap.webcam.setExposureManual(20)
                 boxBlur = blurImg(frame, green_blur)
                 # cv2.putText(frame, "Find Tape", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
                 threshold = threshold_video(lower_green, upper_green, boxBlur)
@@ -1047,8 +1087,8 @@ if __name__ == "__main__":
                     #if (networkTable.getBoolean("Cargo", True)):
                     if switch != 3:
                         print("find cargo")
-                        switch = 3
-                    cap.autoExpose = True
+                    switch = 3
+                    #cap.autoExpose = True
                     boxBlur = blurImg(frame, orange_blur)
                     # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
                     threshold = threshold_video(lower_orange, upper_orange, boxBlur)
@@ -1056,10 +1096,10 @@ if __name__ == "__main__":
                 elif (networkTable.getBoolean("Hatch", True)):
                     # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
                     #if (networkTable.getBoolean("Cargo", True)):
-                    if switch != 3:
+                    if switch != 4:
                         print("find hatch")
-                        switch = 3
-                    cap.autoExpose = True
+                    switch = 4
+                    #cap.autoExpose = True
                     boxBlur = blurImg(frame, yellow_blur)
                     # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
                     threshold = threshold_video(lower_yellow, upper_yellow, boxBlur)
