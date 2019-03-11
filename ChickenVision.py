@@ -122,19 +122,30 @@ class WebcamVideoStream:
 
     def update(self):
         # keep looping infinitely until the thread is stopped
+
         while True:
             # if the thread indicator variable is set, stop the thread
+
+            global switch
+
             if self.stopped:
                 return
             # Boolean logic we don't keep setting exposure over and over to the same value
-            if self.autoExpose:
-                if (self.autoExpose != self.prevValue):
-                    self.prevValue = self.autoExpose
-                    self.webcam.setExposureAuto()
-            else:
-                if (self.autoExpose != self.prevValue):
-                    self.prevValue = self.autoExpose
+            if switch == 1:  # driver mode
+                self.autoExpose = True
+                print("Driver mode")
+                if self.autoExpose != self.prevValue:
                     self.webcam.setExposureManual(20)
+                    print("Driver mode")
+                    self.prevValue = self.autoExpose
+            elif switch != 1:  # not driver mode
+                self.autoExpose = False
+                print("Not driver mode")
+                if self.autoExpose != self.prevValue:
+                    cap.webcam.setExposureManual(50)
+                    cap.webcam.setExposureManual(20)
+                    print("Not driver mode")
+            self.prevValue = self.autoExpose
             # gets the image and timestamp from cameraserver
             (self.timestamp, self.img) = self.stream.grabFrame(self.img)
 
@@ -155,6 +166,8 @@ class WebcamVideoStream:
 # counts frames for writing images
 frameStop = 0
 ImageCounter = 0
+
+switch = 0
 
 # Angles in radians
 
@@ -807,7 +820,7 @@ if __name__ == "__main__":
     networkTable.putBoolean("SendMask", False)
     networkTable.putBoolean("TopCamera", True)
     
-    switch = 0
+
     processed = 0
 
     while True:
