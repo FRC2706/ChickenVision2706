@@ -23,6 +23,7 @@ import numpy as np
 from networktables import NetworkTables
 from networktables.util import ntproperty
 import math
+
 ########### SET RESOLUTION TO 256x144 !!!! ############
 
 # import the necessary packages
@@ -96,7 +97,7 @@ class WebcamVideoStream:
 
         # Automatically sets exposure to 0 to track tape
         self.webcam = camera
-        self.webcam.setExposureManual(20)
+        self.webcam.setExposureManual(35)
 
         # Some booleans so that we don't keep setting exposure over and over to the same value
 
@@ -140,19 +141,19 @@ class WebcamVideoStream:
                     self.webcam.setExposureManual(20)"""
             if switch == 1: #driver mode
                 self.autoExpose = True
-                print("Driver mode")
+                #print("Driver mode")
                 if self.autoExpose != self.prevValue:
+                    cap.webcam.setExposureManual(60)
                     cap.webcam.setExposureManual(50)
-                    cap.webcam.setExposureManual(35)
-                    print("Driver mode")
+                    #print("Driver mode")
                     self.prevValue = self.autoExpose
             elif switch != 1: #not driver mode
                 self.autoExpose = False
-                print("Not driver mode")
+                #print("Not driver mode")
                 if self.autoExpose != self.prevValue:
                     cap.webcam.setExposureManual(50)
                     cap.webcam.setExposureManual(20)
-                    print("Not driver mode")
+                    #print("Not driver mode")
                     self.prevValue = self.autoExpose
 
             # gets the image and timestamp from cameraserver
@@ -179,8 +180,8 @@ ImageCounter = 0
 # Angles in radians
 
 # image size ratioed to 16:9
-image_width = 448
-image_height = 252
+image_width = 256
+image_height = 144
 
 # Lifecam 3000 from datasheet
 # Datasheet: https://dl2jx7zfbtwvr.cloudfront.net/specsheets/WEBC1010.pdf
@@ -270,30 +271,31 @@ def findTargets(frame, mask):
 
     contours = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
 
-    biggestContourArea = float(cv2.contourArea(contours[0]))
+    if len(contours) != 0:
+        biggestContourArea = float(cv2.contourArea(contours[0]))
 
     goodContours = []
 
-    print("contour list length", len(contours))
+    """
+    if len(contours) != 0:
+        for cnts in contours:
+            _, dim, _ = cv2.minAreaRect(cnts)
+            dim = [dim[0], dim[1]]
 
-    for cnts in contours:
-        _, dim, _ = cv2.minAreaRect(cnts)
-        dim = [dim[0], dim[1]]
+            if dim[0] > dim[1]:
+                dim[0], dim[1] = dim[1], dim[0]
+            if cv2.contourArea(cnts) >= biggestContourArea/2:
+                ratio = 0
+                if (dim[0] != 0):
+                    ratio = dim[1] / dim[0]
 
-        if dim[0] > dim[1]:
-            dim[0], dim[1] = dim[1], dim[0]
-        if cv2.contourArea(cnts) >= biggestContourArea/2:
-            ratio = dim[1] / dim[0]
+                print (ratio)
 
-            print("contour measurements: ", ratio, dim[0], dim[1])
-            print("")
+                if ratio < 3.4 and ratio > 1.2:
+                    goodContours.append(cnts)
 
-            if ratio < 2.5 and ratio > 1.5:
-                goodContours.append(cnts)
+    contours = np.array(goodContours)"""
 
-    contours = np.array(goodContours)
-
-    print("contour list length 2: ", len(contours))
 
 
     # Take each frame
@@ -597,7 +599,7 @@ def findTape(contours, image, centerX, centerY):
 
             x, y, w, cntHeight = cv2.boundingRect(cnt)
 
-            print("1", x, y, w, cntHeight)
+
 
             pts, dim, a = cv2.minAreaRect(cnt)
 
@@ -607,9 +609,7 @@ def findTape(contours, image, centerX, centerY):
             w = dim[0]
             cntHeight = dim[1]
 
-            print("2", x, y, w, cntHeight)
 
-            print("")
 
 
             #print("The contour height is, ", cntHeight)
@@ -796,27 +796,34 @@ def calculateDistance(heightOfCamera, heightOfTarget, pitch):
 
     return distance
 
+avg = [0 for i in range(0, 19)]
 
 def calculateDistWPILib(cntHeight):
-    global image_height
-    #print("The contour height is: ", cntHeight)
+    global image_height, avg
+
+    for cnt in avg:
+        if cnt == 0:
+            cnt = cntHeight
+
+    del avg[len(avg) - 1]
+    avg.insert(0, cntHeight)
+    PIX_HEIGHT = 0
+    for cnt in avg:
+        PIX_HEIGHT += cnt
+
+
+    PIX_HEIGHT = PIX_HEIGHT/len(avg)
+
+    #print (PIX_HEIGHT)  #print("The contour height is: ", cntHeight)
     TARGET_HEIGHT = 0.5
 
-    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 37 * 5))
-
-    #print("before: ", VIEWANGLE)
-    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height)/(2 * 23 * 7.5))
-
-    #print("after: ", VIEWANGLE)
-
-    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 13.86362075805664 * 6))
+    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 5.44 * 6.58))
 
     #print("after 2: ", VIEWANGLE)
     #VIEWANGLE = math.radians(68.5)
-    distance = ((TARGET_HEIGHT * image_height) / (2 * cntHeight * math.tan(VIEWANGLE)))
-
-    #distance = ((9859/450000) * distance**2) + ((59709/100000) * distance) + (5592/3125)
-    #distance = ((-4929500000000/142901956972299) * distance**2) + ((227390051005000/14290195697299) * distance) - (33940456739929/13609710187838)
+    distance = ((TARGET_HEIGHT * image_height) / (2 * PIX_HEIGHT * math.tan(VIEWANGLE)))
+    #distance = ((0.02) * distance ** 2) + ((69/ 100) * distance) + (47 / 50)
+    #distance = ((-41/450) * distance ** 2) + ((149 / 100) * distance) - (9 / 25)
 
     return distance
 
@@ -1015,6 +1022,7 @@ if __name__ == "__main__":
     img = np.zeros(shape=(image_height, image_width, 3), dtype=np.uint8)
     # Start thread outputing stream
     streamViewer = VideoShow(image_width, image_height, cameraServer, frame=img).start()
+
     # cap.autoExpose=True;
     tape = True
     fps = FPS().start()
@@ -1077,10 +1085,11 @@ if __name__ == "__main__":
                 #cap.autoExpose = False
                 #cap.webcam.setExposureManual(50)
                 #cap.webcam.setExposureManual(20)
-                boxBlur = blurImg(frame, green_blur)
+                #boxBlur = blurImg(frame, green_blur)
                 # cv2.putText(frame, "Find Tape", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
-                threshold = threshold_video(lower_green, upper_green, boxBlur)
+                threshold = threshold_video(lower_green, upper_green, frame)
                 processed = findTargets(frame, threshold)
+
             else:
                 if (networkTable.getBoolean("Cargo", True)):
                     # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
