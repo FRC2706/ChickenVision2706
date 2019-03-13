@@ -15,6 +15,7 @@ import json
 import time
 import sys
 from threading import Thread
+import random
 
 from cscore import CameraServer, VideoSource
 from networktables import NetworkTablesInstance
@@ -255,48 +256,25 @@ def threshold_video(lower_color, upper_color, blur):
     # Returns the masked imageBlurs video to smooth out image
     global frameStop
     if frameStop == 0:
-        global ImageCounter
-        ImageCounter += 1
-        cv2.imwrite('/mnt/VisionImages/visionImg' +str(ImageCounter)+ '.png', combined_mask)
+        global ImageCounter, matchNumber, matchNumberDefault
+        matchNumber = networkTableMatch.getNumber("MatchNumber", 0)
+        if matchNumber == 0:
+            matchNumber = matchNumberDefault
+        cv2.imwrite('/mnt/VisionImages/visionImg' +str(ImageCounter)+ str(matchNumber)+ '_Mask.png', combined_mask)
     return combined_mask
 
 
 # Finds the tape targets from the masked image and displays them on original stream + network tales
 def findTargets(frame, mask):
 
-    #return mask
+    global networkTable
+    if networkTable.getBoolean("SendMask", False):
+        return mask
 
     # Finds contours
     _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
 
     contours = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
-
-    if len(contours) != 0:
-        biggestContourArea = float(cv2.contourArea(contours[0]))
-
-    goodContours = []
-
-    """
-    if len(contours) != 0:
-        for cnts in contours:
-            _, dim, _ = cv2.minAreaRect(cnts)
-            dim = [dim[0], dim[1]]
-
-            if dim[0] > dim[1]:
-                dim[0], dim[1] = dim[1], dim[0]
-            if cv2.contourArea(cnts) >= biggestContourArea/2:
-                ratio = 0
-                if (dim[0] != 0):
-                    ratio = dim[1] / dim[0]
-
-                print (ratio)
-
-                if ratio < 3.4 and ratio > 1.2:
-                    goodContours.append(cnts)
-
-    contours = np.array(goodContours)"""
-
-
 
     # Take each frame
     # Gets the shape of video
@@ -569,18 +547,6 @@ def findTape(contours, image, centerX, centerY):
     if len(contours) >= 2:
         # Sort contours by area size (biggest to smallest)
         cntsSorted = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
-        """global image_height
-
-        remove = 0
-
-        for cnt in cntsSorted:
-            x, y, w, cntHeight = cv2.boundingRect(cnt)
-            if y > image_height - 100:
-                remove = cnt
-                break
-
-        cntsSorted = np.delete(cntsSorted, [np.where(cntsSorted == remove)])"""
-
 
         cntHeight = 0
 
@@ -606,8 +572,10 @@ def findTape(contours, image, centerX, centerY):
             x = pts[0]
             y = pts[1]
 
-            w = dim[0]
-            cntHeight = dim[1]
+            if dim[0] > dim[1]:
+                cntHeight = dim[0]
+            else:
+                cntHeight = dim[1]
 
 
 
@@ -750,7 +718,8 @@ def findTape(contours, image, centerX, centerY):
 
 # Checks if tape contours are worthy based off of contour area and (not currently) hull area
 def checkContours(cntSize, hullSize):
-    return cntSize > (image_width / 6)
+    print(cntSize, image_width/7)
+    return cntSize > (image_width / 7)
 
 
 # Checks if ball contours are worthy based off of contour area and (not currently) hull area
@@ -796,7 +765,7 @@ def calculateDistance(heightOfCamera, heightOfTarget, pitch):
 
     return distance
 
-avg = [0 for i in range(0, 19)]
+avg = [0 for i in range(0, 8)]
 
 def calculateDistWPILib(cntHeight):
     global image_height, avg
@@ -814,10 +783,10 @@ def calculateDistWPILib(cntHeight):
 
     PIX_HEIGHT = PIX_HEIGHT/len(avg)
 
-    #print (PIX_HEIGHT)  #print("The contour height is: ", cntHeight)
+    print (PIX_HEIGHT, avg)  #print("The contour height is: ", cntHeight)
     TARGET_HEIGHT = 0.5
 
-    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 5.44 * 6.58))
+    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 18.088050440738076 * 5))
 
     #print("after 2: ", VIEWANGLE)
     #VIEWANGLE = math.radians(68.5)
@@ -996,6 +965,8 @@ if __name__ == "__main__":
     # Name of network table - this is how it communicates with robot. IMPORTANT
     networkTable = NetworkTables.getTable('ChickenVision')
 
+    networkTableMatch = NetworkTables.getTable("FMSInfo")
+
     if server:
         print("Setting up NetworkTables server")
         ntinst.startServer()
@@ -1035,7 +1006,8 @@ if __name__ == "__main__":
     networkTable.putBoolean("WriteImages", True)
     networkTable.putBoolean("SendMask", False)
     networkTable.putBoolean("TopCamera", False)
-    
+
+    matchNumberDefault = random.randint(1, 1000)
 
     processed = 0
 
@@ -1045,8 +1017,10 @@ if __name__ == "__main__":
         # in the source image.  If there is an error notify the output.
         timestamp, img = cap.read()
         if frameStop == 0:
-            ImageCounter += 1
-            cv2.imwrite('/mnt/VisionImages/visionImg' +str(ImageCounter)+ '.png', img)
+            matchNumber = networkTableMatch.getNumber("MatchNumber", 0)
+            if matchNumber == 0:
+                matchNumber = matchNumberDefault
+            cv2.imwrite('/mnt/VisionImages/visionImg' + str(ImageCounter) + str(matchNumber) + '_Raw.png', processed)
         # Uncomment if camera is mounted upside down
         if networkTable.getBoolean("TopCamera", False):
             frame = flipImage(img)
@@ -1116,11 +1090,16 @@ if __name__ == "__main__":
 
         # Puts timestamp of camera on netowrk tables
         networkTable.putNumber("VideoTimestamp", timestamp)
-	
+
+
+
         if (networkTable.getBoolean("WriteImages", True)):
             frameStop = frameStop + 1
             if frameStop == 15 :
-                cv2.imwrite('/mnt/VisionImages/visionImg' +str(ImageCounter)+ '.png', processed)
+                matchNumber = networkTableMatch.getNumber("MatchNumber", 0)
+                if matchNumber == 0:
+                    matchNumber = matchNumberDefault
+                cv2.imwrite('/mnt/VisionImages/visionImg' +str(ImageCounter)+ str(matchNumber) + '_Proc.png', processed)
                 frameStop = 0
                 ImageCounter = ImageCounter+1
                 if (ImageCounter==10000):
