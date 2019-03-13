@@ -71,7 +71,7 @@ class VideoShow:
     """
 
     def __init__(self, imgWidth, imgHeight, cameraServer, frame=None):
-        self.outputStream = cameraServer.putVideo("stream_ishan", imgWidth, imgHeight)
+        self.outputStream = cameraServer.putVideo("2706_out", imgWidth, imgHeight)
         self.frame = frame
         self.stopped = False
 
@@ -131,15 +131,7 @@ class WebcamVideoStream:
             global switch
             if self.stopped:
                 return
-            """# Boolean logic we don't keep setting exposure over and over to the same value
-            if self.autoExpose:
-                if (self.autoExpose != self.prevValue):
-                    self.prevValue = self.autoExpose
-                    self.webcam.setExposureAuto()
-            else:
-                if (self.autoExpose != self.prevValue):
-                    self.prevValue = self.autoExpose
-                    self.webcam.setExposureManual(20)"""
+            
             if switch == 1: #driver mode
                 self.autoExpose = True
                 #print("Driver mode")
@@ -255,12 +247,13 @@ def threshold_video(lower_color, upper_color, blur):
 
     # Returns the masked imageBlurs video to smooth out image
     global frameStop
-    if frameStop == 0:
+    if frameStop == 1:
         global ImageCounter, matchNumber, matchNumberDefault
         matchNumber = networkTableMatch.getNumber("MatchNumber", 0)
         if matchNumber == 0:
             matchNumber = matchNumberDefault
-        cv2.imwrite('/mnt/VisionImages/visionImg' +str(ImageCounter)+ str(matchNumber)+ '_Mask.png', combined_mask)
+        cv2.imwrite('/mnt/VisionImages/visionImg-' + str(matchNumber) + "-" + str(ImageCounter) + '_mask.png',
+                    combined_mask)
     return combined_mask
 
 
@@ -783,7 +776,7 @@ def calculateDistWPILib(cntHeight):
 
     PIX_HEIGHT = PIX_HEIGHT/len(avg)
 
-    print (PIX_HEIGHT, avg)  #print("The contour height is: ", cntHeight)
+    #print (PIX_HEIGHT, avg)  #print("The contour height is: ", cntHeight)
     TARGET_HEIGHT = 0.5
 
     VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 18.088050440738076 * 5))
@@ -1020,7 +1013,8 @@ if __name__ == "__main__":
             matchNumber = networkTableMatch.getNumber("MatchNumber", 0)
             if matchNumber == 0:
                 matchNumber = matchNumberDefault
-            cv2.imwrite('/mnt/VisionImages/visionImg' + str(ImageCounter) + str(matchNumber) + '_Raw.png', processed)
+            cv2.imwrite('/mnt/VisionImages/visionImg-' + str(matchNumber) + "-" + str(ImageCounter) + '_Raw.png',
+                        img)
         # Uncomment if camera is mounted upside down
         if networkTable.getBoolean("TopCamera", False):
             frame = flipImage(img)
@@ -1099,7 +1093,7 @@ if __name__ == "__main__":
                 matchNumber = networkTableMatch.getNumber("MatchNumber", 0)
                 if matchNumber == 0:
                     matchNumber = matchNumberDefault
-                cv2.imwrite('/mnt/VisionImages/visionImg' +str(ImageCounter)+ str(matchNumber) + '_Proc.png', processed)
+                cv2.imwrite('/mnt/VisionImages/visionImg-' +str(matchNumber)+"-"+ str(ImageCounter) + '_Proc.png', processed)
                 frameStop = 0
                 ImageCounter = ImageCounter+1
                 if (ImageCounter==10000):
