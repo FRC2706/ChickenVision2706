@@ -99,8 +99,7 @@ class WebcamVideoStream:
         # Automatically sets exposure to 0 to track tape
         self.webcam = camera
         self.webcam.setExposureManual(35)
-
-
+        self.webcam.setExposureAuto()
 
         # Some booleans so that we don't keep setting exposure over and over to the same value
 
@@ -138,16 +137,18 @@ class WebcamVideoStream:
                 self.autoExpose = True
                 #print("Driver mode")
                 if self.autoExpose != self.prevValue:
-                    cap.webcam.setExposureManual(60)
-                    cap.webcam.setExposureManual(50)
+                    self.webcam.setExposureManual(60)
+                    self.webcam.setExposureManual(50)
+                    self.webcam.setExposureAuto()
                     #print("Driver mode")
                     self.prevValue = self.autoExpose
             elif switch != 1: #not driver mode
                 self.autoExpose = False
                 #print("Not driver mode")
                 if self.autoExpose != self.prevValue:
-                    cap.webcam.setExposureManual(50)
-                    cap.webcam.setExposureManual(20)
+
+                    self.webcam.setExposureManual(50)
+                    self.webcam.setExposureManual(20)
                     #print("Not driver mode")
                     self.prevValue = self.autoExpose
 
@@ -951,6 +952,7 @@ def startCamera(config):
 
     return cs, camera
 
+start, switched = True, False
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
@@ -1008,6 +1010,8 @@ if __name__ == "__main__":
 
     matchNumberDefault = random.randint(1, 1000)
 
+
+
     processed = 0
 
     while True:
@@ -1038,15 +1042,27 @@ if __name__ == "__main__":
             # skip the rest of the current iteration
             continue
         # Checks if you just want camera for driver (No processing), False by default
+
+        if start:
+            if switched:
+                networkTable.putBoolean("Driver", True)
+            elif not switched:
+                networkTable.putBoolean("Driver", False)
+                switched = True
+            if networkTable.getBoolean("Driver", True):
+                start = False
         if (networkTable.getBoolean("Driver", True)):
             if switch != 1:
                 print("no processing")
                 switch = 1
+
+
             #cap.autoExpose = True
             #cap.webcam.setExposureManual(50)
             #cap.webcam.setExposureManual(35)
             # cv2.putText(frame, "No Process", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
             processed = frame
+
         else:
             # Checks if you just want camera for Tape processing , False by default
             # Switched to True, default is False
