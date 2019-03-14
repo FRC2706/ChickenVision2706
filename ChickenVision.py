@@ -100,6 +100,8 @@ class WebcamVideoStream:
         self.webcam = camera
         self.webcam.setExposureManual(35)
 
+
+
         # Some booleans so that we don't keep setting exposure over and over to the same value
 
         self.autoExpose = True
@@ -131,7 +133,7 @@ class WebcamVideoStream:
             global switch
             if self.stopped:
                 return
-            
+
             if switch == 1: #driver mode
                 self.autoExpose = True
                 #print("Driver mode")
@@ -761,7 +763,9 @@ def calculateDistance(heightOfCamera, heightOfTarget, pitch):
 avg = [0 for i in range(0, 8)]
 
 def calculateDistWPILib(cntHeight):
-    global image_height, avg
+    global image_height, avg, networkTable
+
+
 
     for cnt in avg:
         if cnt == 0:
@@ -776,10 +780,12 @@ def calculateDistWPILib(cntHeight):
 
     PIX_HEIGHT = PIX_HEIGHT/len(avg)
 
-    #print (PIX_HEIGHT, avg)  #print("The contour height is: ", cntHeight)
+    networkTable.putNumber("Pixel height", PIX_HEIGHT)
+
+    print (PIX_HEIGHT, avg)  #print("The contour height is: ", cntHeight)
     TARGET_HEIGHT = 0.5
 
-    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 18.088050440738076 * 5))
+    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 15.81 * 6))
 
     #print("after 2: ", VIEWANGLE)
     #VIEWANGLE = math.radians(68.5)
