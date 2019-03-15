@@ -133,23 +133,22 @@ class WebcamVideoStream:
             if self.stopped:
                 return
 
-            if switch == 1: #driver mode
+            if switch == 1:  # driver mode
                 self.autoExpose = True
-                #print("Driver mode")
+                # print("Driver mode")
                 if self.autoExpose != self.prevValue:
                     self.webcam.setExposureManual(60)
                     self.webcam.setExposureManual(50)
                     self.webcam.setExposureAuto()
-                    #print("Driver mode")
+                    # print("Driver mode")
                     self.prevValue = self.autoExpose
-            elif switch != 1: #not driver mode
+            elif switch != 1:  # not driver mode
                 self.autoExpose = False
-                #print("Not driver mode")
+                # print("Not driver mode")
                 if self.autoExpose != self.prevValue:
-
                     self.webcam.setExposureManual(50)
                     self.webcam.setExposureManual(20)
-                    #print("Not driver mode")
+                    # print("Not driver mode")
                     self.prevValue = self.autoExpose
 
             # gets the image and timestamp from cameraserver
@@ -225,11 +224,11 @@ def blurImg(frame, blur_radius):
     blur = cv2.blur(img, (blur_radius, blur_radius))
     return blur
 
+
 def threshold_range(im, lo, hi):
     unused, t1 = cv2.threshold(im, lo, 255, type=cv2.THRESH_BINARY)
     unused, t2 = cv2.threshold(im, hi, 255, type=cv2.THRESH_BINARY_INV)
     return cv2.bitwise_and(t1, t2)
-
 
 
 # Masks the video based on a range of hsv colors
@@ -243,26 +242,18 @@ def threshold_video(lower_color, upper_color, blur):
     h = threshold_range(h, lower_color[0], upper_color[0])
     s = threshold_range(s, lower_color[1], upper_color[1])
     v = threshold_range(v, lower_color[2], upper_color[2])
-    combined_mask = cv2.bitwise_and(h, cv2.bitwise_and(s,v))
-    
+    combined_mask = cv2.bitwise_and(h, cv2.bitwise_and(s, v))
+
     # hold the HSV image to get only red colors
-    #mask = cv2.inRange(combined, lower_color, upper_color)
+    # mask = cv2.inRange(combined, lower_color, upper_color)
 
     # Returns the masked imageBlurs video to smooth out image
-    global frameStop
-    if frameStop == 1:
-        global ImageCounter, matchNumber, matchNumberDefault
-        matchNumber = networkTableMatch.getNumber("MatchNumber", 0)
-        if matchNumber == 0:
-            matchNumber = matchNumberDefault
-        cv2.imwrite('/mnt/VisionImages/visionImg-' + str(matchNumber) + "-" + str(ImageCounter) + '_mask.png',
-                    combined_mask)
+
     return combined_mask
 
 
 # Finds the tape targets from the masked image and displays them on original stream + network tales
 def findTargets(frame, mask):
-
     global networkTable
     if networkTable.getBoolean("SendMask", False):
         return mask
@@ -305,6 +296,7 @@ def findCargo(frame, mask):
     # Shows the contours overlayed on the original video
     return image
 
+
 def findHatch(frame, mask):
     # Finds contours
     _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
@@ -330,7 +322,7 @@ def findBall(contours, image, centerX, centerY):
     screenHeight, screenWidth, channels = image.shape
     # Seen vision targets (correct angle, adjacent to each other)
     cargo = []
-    
+
     if len(contours) > 0:
         # Sort contours by area size (biggest to smallest)
         cntsSorted = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
@@ -557,11 +549,7 @@ def findTape(contours, image, centerX, centerY):
             # calculate area of convex hull
             hullArea = cv2.contourArea(hull)
 
-
-
             x, y, w, cntHeight = cv2.boundingRect(cnt)
-
-
 
             pts, dim, a = cv2.minAreaRect(cnt)
 
@@ -573,10 +561,7 @@ def findTape(contours, image, centerX, centerY):
             else:
                 cntHeight = dim[1]
 
-
-
-
-            #print("The contour height is, ", cntHeight)
+            # print("The contour height is, ", cntHeight)
             # Filters contours based off of size
             if (checkContours(cntArea, hullArea)):
                 ### MOSTLY DRAWING CODE, BUT CALCULATES IMPORTANT INFO ###
@@ -701,7 +686,7 @@ def findTape(contours, image, centerX, centerY):
         # pushes distance to network table
         networkTable.putNumber("distance", finalTarget[2])
 
-        vectorCameraToTarget = ntproperty('/PathFinder/vectorCameraToTarget',[currentAngleError,finalTarget[2]])
+        vectorCameraToTarget = ntproperty('/PathFinder/vectorCameraToTarget', [currentAngleError, finalTarget[2]])
         # networkTable.putNumber("vectorCameraToTarget",[currentAngleError,finalTarget[2]])
     else:
         # pushes that it deosn't see vision target to network tables
@@ -714,13 +699,14 @@ def findTape(contours, image, centerX, centerY):
 
 # Checks if tape contours are worthy based off of contour area and (not currently) hull area
 def checkContours(cntSize, hullSize):
-    print(cntSize, image_width/7)
+    print(cntSize, image_width / 7)
     return cntSize > (image_width / 7)
 
 
 # Checks if ball contours are worthy based off of contour area and (not currently) hull area
 def checkBall(cntSize, cntAspectRatio):
     return (cntSize > (image_width / 2)) and (round(cntAspectRatio) == 1)
+
 
 def checkHatch(cntSize, cntAspectRatio):
     return (cntSize > (image_width / 2)) and (round(cntAspectRatio) == 1)
@@ -761,12 +747,12 @@ def calculateDistance(heightOfCamera, heightOfTarget, pitch):
 
     return distance
 
+
 avg = [0 for i in range(0, 8)]
+
 
 def calculateDistWPILib(cntHeight):
     global image_height, avg, networkTable
-
-
 
     for cnt in avg:
         if cnt == 0:
@@ -778,21 +764,20 @@ def calculateDistWPILib(cntHeight):
     for cnt in avg:
         PIX_HEIGHT += cnt
 
-
-    PIX_HEIGHT = PIX_HEIGHT/len(avg)
+    PIX_HEIGHT = PIX_HEIGHT / len(avg)
 
     networkTable.putNumber("Pixel height", PIX_HEIGHT)
 
-    print (PIX_HEIGHT, avg)  #print("The contour height is: ", cntHeight)
+    print(PIX_HEIGHT, avg)  # print("The contour height is: ", cntHeight)
     TARGET_HEIGHT = 0.5
 
     VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 15.81 * 6))
 
-    #print("after 2: ", VIEWANGLE)
-    #VIEWANGLE = math.radians(68.5)
+    # print("after 2: ", VIEWANGLE)
+    # VIEWANGLE = math.radians(68.5)
     distance = ((TARGET_HEIGHT * image_height) / (2 * PIX_HEIGHT * math.tan(VIEWANGLE)))
-    #distance = ((0.02) * distance ** 2) + ((69/ 100) * distance) + (47 / 50)
-    #distance = ((-41/450) * distance ** 2) + ((149 / 100) * distance) - (9 / 25)
+    # distance = ((0.02) * distance ** 2) + ((69/ 100) * distance) + (47 / 50)
+    # distance = ((-41/450) * distance ** 2) + ((149 / 100) * distance) - (9 / 25)
 
     return distance
 
@@ -952,9 +937,11 @@ def startCamera(config):
 
     return cs, camera
 
+
 start, switched, prevCam = True, False, 0
 
 currentCam = 0
+
 
 def switchCam():
     global currentCam, webcam, cameras, streams, cameraServer, cap, image_width, image_height, prevCam
@@ -1016,20 +1003,20 @@ if __name__ == "__main__":
     fps = FPS().start()
     # TOTAL_FRAMES = 200;
     # loop forever
-    networkTable.putBoolean("Driver", True)
-    networkTable.putBoolean("Tape", False)
+    networkTable.putBoolean("Driver", False)
+    networkTable.putBoolean("Tape", True)
     networkTable.putBoolean("Cargo", False)
     networkTable.putBoolean("Hatch", False)
-    networkTable.putBoolean("WriteImages", True)
+    networkTable.putBoolean("WriteImages", False)
     networkTable.putBoolean("SendMask", False)
-    networkTable.putBoolean("TopCamera", False)
+    networkTable.putBoolean("TopCamera", True)
     networkTable.putBoolean("Cam", currentCam)
 
     matchNumberDefault = random.randint(1, 1000)
 
-
-
     processed = 0
+
+    img = cv2.imread('/mnt/VisionImages/test-image.png')
 
     while True:
         if networkTable.getBoolean("TopCamera", False):
@@ -1042,14 +1029,8 @@ if __name__ == "__main__":
 
         # Tell the CvSink to grab a frame from the camera and put it
         # in the source image.  If there is an error notify the output.
-        timestamp, img = cap.read()
-        if frameStop == 0:
-            matchNumber = networkTableMatch.getNumber("MatchNumber", 0)
-            if matchNumber == 0:
-                matchNumber = matchNumberDefault
-            cv2.imwrite('/mnt/VisionImages/visionImg-' + str(matchNumber) + "-" + str(ImageCounter) + '_Raw.png',
-                        img)
-        # Uncomment if camera is mounted upside down
+
+
         if networkTable.getBoolean("TopCamera", False):
             frame = flipImage(img)
         else:
@@ -1057,9 +1038,6 @@ if __name__ == "__main__":
         # Comment out if camera is mounted upside down
         # img = findCargo(frame,img)
 
-
-
-        
         if timestamp == 0:
             # Send the output the error.
             streamViewer.notifyError(cap.getError())
@@ -1067,23 +1045,14 @@ if __name__ == "__main__":
             continue
         # Checks if you just want camera for driver (No processing), False by default
 
-        if start:
-            if switched:
-                networkTable.putBoolean("Driver", True)
-            elif not switched:
-                networkTable.putBoolean("Driver", False)
-                switched = True
-            if networkTable.getBoolean("Driver", True):
-                start = False
         if (networkTable.getBoolean("Driver", True)):
             if switch != 1:
                 print("no processing")
                 switch = 1
 
-
-            #cap.autoExpose = True
-            #cap.webcam.setExposureManual(50)
-            #cap.webcam.setExposureManual(35)
+            # cap.autoExpose = True
+            # cap.webcam.setExposureManual(50)
+            # cap.webcam.setExposureManual(35)
             # cv2.putText(frame, "No Process", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
             processed = frame
 
@@ -1096,10 +1065,10 @@ if __name__ == "__main__":
                     print("finding tape")
                 switch = 2
                 # Lowers exposure to 0
-                #cap.autoExpose = False
-                #cap.webcam.setExposureManual(50)
-                #cap.webcam.setExposureManual(20)
-                #boxBlur = blurImg(frame, green_blur)
+                # cap.autoExpose = False
+                # cap.webcam.setExposureManual(50)
+                # cap.webcam.setExposureManual(20)
+                # boxBlur = blurImg(frame, green_blur)
                 # cv2.putText(frame, "Find Tape", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
                 threshold = threshold_video(lower_green, upper_green, frame)
                 processed = findTargets(frame, threshold)
@@ -1107,22 +1076,22 @@ if __name__ == "__main__":
             else:
                 if (networkTable.getBoolean("Cargo", True)):
                     # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
-                    #if (networkTable.getBoolean("Cargo", True)):
+                    # if (networkTable.getBoolean("Cargo", True)):
                     if switch != 3:
                         print("find cargo")
                     switch = 3
-                    #cap.autoExpose = True
+                    # cap.autoExpose = True
                     boxBlur = blurImg(frame, orange_blur)
                     # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
                     threshold = threshold_video(lower_orange, upper_orange, boxBlur)
                     processed = findCargo(frame, threshold)
                 elif (networkTable.getBoolean("Hatch", True)):
                     # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
-                    #if (networkTable.getBoolean("Cargo", True)):
+                    # if (networkTable.getBoolean("Cargo", True)):
                     if switch != 4:
                         print("find hatch")
                     switch = 4
-                    #cap.autoExpose = True
+                    # cap.autoExpose = True
                     boxBlur = blurImg(frame, yellow_blur)
                     # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
                     threshold = threshold_video(lower_yellow, upper_yellow, boxBlur)
@@ -1130,20 +1099,6 @@ if __name__ == "__main__":
 
         # Puts timestamp of camera on netowrk tables
         networkTable.putNumber("VideoTimestamp", timestamp)
-
-
-
-        if (networkTable.getBoolean("WriteImages", True)):
-            frameStop = frameStop + 1
-            if frameStop == 15 :
-                matchNumber = networkTableMatch.getNumber("MatchNumber", 0)
-                if matchNumber == 0:
-                    matchNumber = matchNumberDefault
-                cv2.imwrite('/mnt/VisionImages/visionImg-' +str(matchNumber)+"-"+ str(ImageCounter) + '_Proc.png', processed)
-                frameStop = 0
-                ImageCounter = ImageCounter+1
-                if (ImageCounter==10000):
-                    ImageCounter=0
 
         # networkTable.putBoolean("Driver", True)
         streamViewer.frame = processed
