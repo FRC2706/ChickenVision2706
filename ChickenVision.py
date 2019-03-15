@@ -171,7 +171,7 @@ class WebcamVideoStream:
 
 # counts frames for writing images
 frameStop = 0
-ImageCounter = 0
+ImageCounter = 1000
 
 # Angles in radians
 
