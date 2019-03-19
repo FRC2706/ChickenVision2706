@@ -17,13 +17,13 @@ import sys
 from threading import Thread
 import random
 
-from cscore import CameraServer, VideoSource
-from networktables import NetworkTablesInstance
+
 import cv2
 import numpy as np
-from networktables import NetworkTables
-from networktables.util import ntproperty
+
 import math
+
+import os
 
 ########### SET RESOLUTION TO 256x144 !!!! ############
 
@@ -32,138 +32,6 @@ import datetime
 
 
 # Class to examine Frames per second of camera stream. Currently not used.
-class FPS:
-    def __init__(self):
-        # store the start time, end time, and total number of frames
-        # that were examined between the start and end intervals
-        self._start = None
-        self._end = None
-        self._numFrames = 0
-
-    def start(self):
-        # start the timer
-        self._start = datetime.datetime.now()
-        return self
-
-    def stop(self):
-        # stop the timer
-        self._end = datetime.datetime.now()
-
-    def update(self):
-        # increment the total number of frames examined during the
-        # start and end intervals
-        self._numFrames += 1
-
-    def elapsed(self):
-        # return the total number of seconds between the start and
-        # end interval
-        return (self._end - self._start).total_seconds()
-
-    def fps(self):
-        # compute the (approximate) frames per second
-        return self._numFrames / self.elapsed()
-
-
-# class that runs separate thread for showing video,
-class VideoShow:
-    """
-    Class that continuously shows a frame using a dedicated thread.
-    """
-
-    def __init__(self, imgWidth, imgHeight, cameraServer, frame=None):
-        self.outputStream = cameraServer.putVideo("2706_out", imgWidth, imgHeight)
-        self.frame = frame
-        self.stopped = False
-
-    def start(self):
-        Thread(target=self.show, args=()).start()
-        return self
-
-    def show(self):
-        while not self.stopped:
-            self.outputStream.putFrame(self.frame)
-
-    def stop(self):
-        self.stopped = True
-
-    def notifyError(self, error):
-        self.outputStream.notifyError(error)
-
-
-# Class that runs a separate thread for reading  camera server also controlling exposure.
-class WebcamVideoStream:
-    def __init__(self, camera, cameraServer, frameWidth, frameHeight, name="WebcamVideoStream"):
-        # initialize the video camera stream and read the first frame
-        # from the stream
-
-        # Automatically sets exposure to 0 to track tape
-        self.webcam = camera
-        self.webcam.setExposureManual(35)
-        self.webcam.setExposureAuto()
-
-        # Some booleans so that we don't keep setting exposure over and over to the same value
-
-        self.autoExpose = True
-        self.prevValue = True
-        # Make a blank image to write on
-        self.img = np.zeros(shape=(frameWidth, frameHeight, 3), dtype=np.uint8)
-        # Gets the video
-        self.stream = cameraServer.getVideo()
-        (self.timestamp, self.img) = self.stream.grabFrame(self.img)
-
-        # initialize the thread name
-        self.name = name
-
-        # initialize the variable used to indicate if the thread should
-        # be stopped
-        self.stopped = False
-
-    def start(self):
-        # start the thread to read frames from the video stream
-        t = Thread(target=self.update, name=self.name, args=())
-        t.daemon = True
-        t.start()
-        return self
-
-    def update(self):
-        # keep looping infinitely until the thread is stopped
-        while True:
-            # if the thread indicator variable is set, stop the thread
-            global switch
-            if self.stopped:
-                return
-
-            if switch == 1:  # driver mode
-                self.autoExpose = True
-                # print("Driver mode")
-                if self.autoExpose != self.prevValue:
-                    self.webcam.setExposureManual(60)
-                    self.webcam.setExposureManual(50)
-                    self.webcam.setExposureAuto()
-                    # print("Driver mode")
-                    self.prevValue = self.autoExpose
-            elif switch != 1:  # not driver mode
-                self.autoExpose = False
-                # print("Not driver mode")
-                if self.autoExpose != self.prevValue:
-                    self.webcam.setExposureManual(50)
-                    self.webcam.setExposureManual(20)
-                    # print("Not driver mode")
-                    self.prevValue = self.autoExpose
-
-            # gets the image and timestamp from cameraserver
-            (self.timestamp, self.img) = self.stream.grabFrame(self.img)
-
-    def read(self):
-        # return the frame most recently read
-        return self.timestamp, self.img
-
-    def stop(self):
-        # indicate that the thread should be stopped
-        self.stopped = True
-
-    def getError(self):
-        return self.stream.getError()
 
 
 ###################### PROCESSING OPENCV ################################
@@ -254,9 +122,7 @@ def threshold_video(lower_color, upper_color, blur):
 
 # Finds the tape targets from the masked image and displays them on original stream + network tales
 def findTargets(frame, mask):
-    global networkTable
-    if networkTable.getBoolean("SendMask", False):
-        return mask
+
 
     # Finds contours
     _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
@@ -388,7 +254,7 @@ def findBall(contours, image, centerX, centerY):
         # Check if there are cargo seen
         if (len(biggestCargo) > 0):
             # pushes that it sees cargo to network tables
-            networkTable.putBoolean("cargoDetected", True)
+
             finalTarget = []
             # Sorts targets based on x coords to break any angle tie
             biggestCargo.sort(key=lambda x: math.fabs(x[0]))
@@ -397,8 +263,7 @@ def findBall(contours, image, centerX, centerY):
             finalTarget.append(calculateYaw(xCoord, centerX, H_FOCAL_LENGTH))
             finalTarget.append(calculateDistWPILib(closestCargo[3]))
             print("Yaw: " + str(finalTarget[0]))
-            networkTable.putString("Yaw", finalTarget[0])
-            networkTable.putString("Dist:", finalTarget[1])
+
             # Puts the yaw on screen
             # Draws yaw of target + line where center of target is
             cv2.putText(image, "Yaw: " + str(finalTarget[0]), (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6,
@@ -409,12 +274,8 @@ def findBall(contours, image, centerX, centerY):
 
             currentAngleError = finalTarget[0]
             # pushes cargo angle to network tables
-            networkTable.putNumber("cargoYaw", currentAngleError)
-            networkTable.putNumber("cargoDist", finalTarget[1])
 
-        else:
-            # pushes that it doesn't see cargo to network tables
-            networkTable.putBoolean("cargoDetected", False)
+
 
         cv2.line(image, (round(centerX), screenHeight), (round(centerX), 0), (255, 255, 255), 2)
 
@@ -491,7 +352,7 @@ def findHatches(contours, image, centerX, centerY):
         # Check if there are cargo seen
         if (len(biggestHatch) > 0):
             # pushes that it sees cargo to network tables
-            networkTable.putBoolean("hatchDetected", True)
+
             finalTarget = []
             # Sorts targets based on x coords to break any angle tie
             biggestHatch.sort(key=lambda x: math.fabs(x[0]))
@@ -500,8 +361,7 @@ def findHatches(contours, image, centerX, centerY):
             finalTarget.append(calculateYaw(xCoord, centerX, H_FOCAL_LENGTH))
             finalTarget.append(calculateDistWPILib(closestCargo[3]))
             print("Yaw: " + str(finalTarget[0]))
-            networkTable.putString("Yaw", finalTarget[0])
-            networkTable.putString("Dist:", finalTarget[1])
+
             # Puts the yaw on screen
             # Draws yaw of target + line where center of target is
             cv2.putText(image, "Yaw: " + str(finalTarget[0]), (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6,
@@ -512,12 +372,6 @@ def findHatches(contours, image, centerX, centerY):
 
             currentAngleError = finalTarget[0]
             # pushes cargo angle to network tables
-            networkTable.putNumber("hatchYaw", currentAngleError)
-            networkTable.putNumber("hatchDist", finalTarget[1])
-
-        else:
-            # pushes that it doesn't see cargo to network tables
-            networkTable.putBoolean("hatchDetected", False)
 
         cv2.line(image, (round(centerX), screenHeight), (round(centerX), 0), (255, 255, 255), 2)
 
@@ -667,7 +521,7 @@ def findTape(contours, image, centerX, centerY):
     # Check if there are targets seen
     if (len(targets) > 0):
         # pushes that it sees vision target to network tables
-        networkTable.putBoolean("tapeDetected", True)
+
         # Sorts targets based on x coords to break any angle tie
         targets.sort(key=lambda x: math.fabs(x[0]))
         finalTarget = min(targets, key=lambda x: math.fabs(x[1]))
@@ -680,17 +534,8 @@ def findTape(contours, image, centerX, centerY):
         cv2.line(image, (finalTarget[0], screenHeight), (finalTarget[0], 0), (255, 0, 0), 2)
 
         currentAngleError = finalTarget[1]
-        # pushes vision target angle to network tables
-        networkTable.putNumber("tapeYaw", currentAngleError)
+        # pushes vision target angle to network table
 
-        # pushes distance to network table
-        networkTable.putNumber("distance", finalTarget[2])
-
-        vectorCameraToTarget = ntproperty('/PathFinder/vectorCameraToTarget', [currentAngleError, finalTarget[2]])
-        # networkTable.putNumber("vectorCameraToTarget",[currentAngleError,finalTarget[2]])
-    else:
-        # pushes that it deosn't see vision target to network tables
-        networkTable.putBoolean("tapeDetected", False)
 
     cv2.line(image, (round(centerX), screenHeight), (round(centerX), 0), (255, 255, 255), 2)
 
@@ -752,7 +597,7 @@ avg = [0 for i in range(0, 8)]
 
 
 def calculateDistWPILib(cntHeight):
-    global image_height, avg, networkTable
+    global image_height, avg
 
     for cnt in avg:
         if cnt == 0:
@@ -766,7 +611,7 @@ def calculateDistWPILib(cntHeight):
 
     PIX_HEIGHT = PIX_HEIGHT / len(avg)
 
-    networkTable.putNumber("Pixel height", PIX_HEIGHT)
+
 
     print(PIX_HEIGHT, avg)  # print("The contour height is: ", cntHeight)
     TARGET_HEIGHT = 0.5
@@ -831,283 +676,76 @@ def getEllipseRotation(image, cnt):
         return rotation
 
 
-#################### FRC VISION PI Image Specific #############
-configFile = "/boot/frc.json"
-
-
-class CameraConfig: pass
 
 
 team = 2706
 server = False
 cameraConfigs = []
 
-"""Report parse error."""
+currentImg = 0
 
 
-def parseError(str):
-    print("config error in '" + configFile + "': " + str, file=sys.stderr)
+
+Driver = False
+Tape = True
+Cargo = False
+Hatch = False
 
 
-"""Read single camera configuration."""
 
+def load_images_from_folder(folder):
+    images = []
+    for filename in os.listdir(folder):
+        img = cv2.imread(os.path.join(folder,filename))
+        if img is not None:
+            images.append(img)
+    return images
 
-def readCameraConfig(config):
-    cam = CameraConfig()
+images = load_images_from_folder("folder here")
 
-    # name
-    try:
-        cam.name = config["name"]
-    except KeyError:
-        parseError("could not read camera name")
-        return False
+img = images[0]
 
-    # path
-    try:
-        cam.path = config["path"]
-    except KeyError:
-        parseError("camera '{}': could not read path".format(cam.name))
-        return False
+print("Hello World!")
 
-    cam.config = config
+while True:
 
-    cameraConfigs.append(cam)
-    return True
+    frame = img
 
+    if Driver:
 
-"""Read configuration file."""
+        processed = frame
 
-
-def readConfig():
-    global team
-    global server
-
-    # parse file
-    try:
-        with open(configFile, "rt") as f:
-            j = json.load(f)
-    except OSError as err:
-        print("could not open '{}': {}".format(configFile, err), file=sys.stderr)
-        return False
-
-    # top level must be an object
-    if not isinstance(j, dict):
-        parseError("must be JSON object")
-        return False
-
-    # team number
-    try:
-        team = j["team"]
-    except KeyError:
-        parseError("could not read team number")
-        return False
-
-    # ntmode (optional)
-    if "ntmode" in j:
-        str = j["ntmode"]
-        if str.lower() == "client":
-            server = False
-        elif str.lower() == "server":
-            server = True
-        else:
-            parseError("could not understand ntmode value '{}'".format(str))
-
-    # cameras
-    try:
-        cameras = j["cameras"]
-    except KeyError:
-        parseError("could not read cameras")
-        return False
-    for camera in cameras:
-        if not readCameraConfig(camera):
-            return False
-
-    return True
-
-
-"""Start running the camera."""
-
-
-def startCamera(config):
-    print("Starting camera '{}' on {}".format(config.name, config.path))
-    cs = CameraServer.getInstance()
-    camera = cs.startAutomaticCapture(name=config.name, path=config.path)
-
-    camera.setConfigJson(json.dumps(config.config))
-
-    return cs, camera
-
-
-start, switched, prevCam = True, False, 0
-
-currentCam = 0
-
-
-def switchCam():
-    global currentCam, webcam, cameras, streams, cameraServer, cap, image_width, image_height, prevCam
-    if networkTable.getNumber("Cam", 1):
-        currentCam = 1
     else:
-        currentCam = 0
-    prevCam = currentCam
-    cap.stop()
-    webcam = cameras[currentCam]
-    cameraServer = streams[currentCam]
-    # Start thread reading camera
-    cap = WebcamVideoStream(webcam, cameraServer, image_width, image_height).start()
 
+        if Tape:
 
-if __name__ == "__main__":
-    if len(sys.argv) >= 2:
-        configFile = sys.argv[1]
-    # read configuration
-    if not readConfig():
-        sys.exit(1)
-
-    # start NetworkTables
-    ntinst = NetworkTablesInstance.getDefault()
-    # Name of network table - this is how it communicates with robot. IMPORTANT
-    networkTable = NetworkTables.getTable('ChickenVision')
-
-    networkTableMatch = NetworkTables.getTable("FMSInfo")
-
-    if server:
-        print("Setting up NetworkTables server")
-        ntinst.startServer()
-    else:
-        print("Setting up NetworkTables client for team {}".format(team))
-        ntinst.startClientTeam(team)
-
-    # start cameras
-    cameras = []
-    streams = []
-    for cameraConfig in cameraConfigs:
-        cs, cameraCapture = startCamera(cameraConfig)
-        streams.append(cs)
-        cameras.append(cameraCapture)
-    # Get the first camera
-
-    webcam = cameras[currentCam]
-    cameraServer = streams[currentCam]
-    # Start thread reading camera
-    cap = WebcamVideoStream(webcam, cameraServer, image_width, image_height).start()
-    # cap = cap.findTape
-    # (optional) Setup a CvSource. This will send images back to the Dashboard
-    # Allocating new images is very expensive, always try to preallocate
-    img = np.zeros(shape=(image_height, image_width, 3), dtype=np.uint8)
-    # Start thread outputing stream
-    streamViewer = VideoShow(image_width, image_height, cameraServer, frame=img).start()
-
-    # cap.autoExpose=True;
-    tape = True
-    fps = FPS().start()
-    # TOTAL_FRAMES = 200;
-    # loop forever
-    networkTable.putBoolean("Driver", False)
-    networkTable.putBoolean("Tape", True)
-    networkTable.putBoolean("Cargo", False)
-    networkTable.putBoolean("Hatch", False)
-    networkTable.putBoolean("WriteImages", False)
-    networkTable.putBoolean("SendMask", False)
-    networkTable.putBoolean("TopCamera", True)
-    networkTable.putBoolean("Cam", currentCam)
-
-    matchNumberDefault = random.randint(1, 1000)
-
-    processed = 0
-
-    img = cv2.imread('/mnt/VisionImages/test-image.png')
-
-    while True:
-        if networkTable.getBoolean("TopCamera", False):
-            currentCam = 1
-        else:
-            currentCam = 0
-
-        if networkTable.getNumber("Cam", currentCam) != prevCam:
-            switchCam()
-
-        # Tell the CvSink to grab a frame from the camera and put it
-        # in the source image.  If there is an error notify the output.
-
-
-        if networkTable.getBoolean("TopCamera", False):
-            frame = flipImage(img)
-        else:
-            frame = img
-        # Comment out if camera is mounted upside down
-        # img = findCargo(frame,img)
-
-        if timestamp == 0:
-            # Send the output the error.
-            streamViewer.notifyError(cap.getError())
-            # skip the rest of the current iteration
-            continue
-        # Checks if you just want camera for driver (No processing), False by default
-
-        if (networkTable.getBoolean("Driver", True)):
-            if switch != 1:
-                print("no processing")
-                switch = 1
-
-            # cap.autoExpose = True
-            # cap.webcam.setExposureManual(50)
-            # cap.webcam.setExposureManual(35)
-            # cv2.putText(frame, "No Process", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
-            processed = frame
+            threshold = threshold_video(lower_green, upper_green, frame)
+            processed = findTargets(frame, threshold)
 
         else:
-            # Checks if you just want camera for Tape processing , False by default
-            # Switched to True, default is False
-            switch = 0
-            if (networkTable.getBoolean("Tape", True)):
-                if switch != 2:
-                    print("finding tape")
-                switch = 2
-                # Lowers exposure to 0
-                # cap.autoExpose = False
-                # cap.webcam.setExposureManual(50)
-                # cap.webcam.setExposureManual(20)
-                # boxBlur = blurImg(frame, green_blur)
-                # cv2.putText(frame, "Find Tape", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
-                threshold = threshold_video(lower_green, upper_green, frame)
-                processed = findTargets(frame, threshold)
+            if Cargo:
 
-            else:
-                if (networkTable.getBoolean("Cargo", True)):
-                    # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
-                    # if (networkTable.getBoolean("Cargo", True)):
-                    if switch != 3:
-                        print("find cargo")
-                    switch = 3
-                    # cap.autoExpose = True
-                    boxBlur = blurImg(frame, orange_blur)
-                    # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
-                    threshold = threshold_video(lower_orange, upper_orange, boxBlur)
-                    processed = findCargo(frame, threshold)
-                elif (networkTable.getBoolean("Hatch", True)):
-                    # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
-                    # if (networkTable.getBoolean("Cargo", True)):
-                    if switch != 4:
-                        print("find hatch")
-                    switch = 4
-                    # cap.autoExpose = True
-                    boxBlur = blurImg(frame, yellow_blur)
-                    # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
-                    threshold = threshold_video(lower_yellow, upper_yellow, boxBlur)
-                    processed = findHatch(frame, threshold)
+                boxBlur = blurImg(frame, orange_blur)
 
-        # Puts timestamp of camera on netowrk tables
-        networkTable.putNumber("VideoTimestamp", timestamp)
+                threshold = threshold_video(lower_orange, upper_orange, boxBlur)
+                processed = findCargo(frame, threshold)
+            elif Hatch:
 
-        # networkTable.putBoolean("Driver", True)
-        streamViewer.frame = processed
-        # update the FPS counter
-        fps.update()
-        # Flushes camera values to reduce latency
-        ntinst.flush()
-    # Doesn't do anything at the moment. You can easily get this working by indenting these three lines
-    # and setting while loop to: while fps._numFrames < TOTAL_FRAMES
-    fps.stop()
-    print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
-    print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
+                boxBlur = blurImg(frame, yellow_blur)
+                # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
+                threshold = threshold_video(lower_yellow, upper_yellow, boxBlur)
+                processed = findHatch(frame, threshold)
+
+
+    cv2.imshow(processed, 0)
+
+    cv2.waitKey(0)
+
+    currentImg += 1
+
+    img = images[currentImg]
+
+
+
+
+
