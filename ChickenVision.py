@@ -176,8 +176,8 @@ ImageCounter = 0
 # Angles in radians
 
 # image size ratioed to 16:9
-image_width = 256
-image_height = 144
+image_width = 416
+image_height = 240
 
 # Lifecam 3000 from datasheet
 # Datasheet: https://dl2jx7zfbtwvr.cloudfront.net/specsheets/WEBC1010.pdf
@@ -714,7 +714,7 @@ def findTape(contours, image, centerX, centerY):
 
 # Checks if tape contours are worthy based off of contour area and (not currently) hull area
 def checkContours(cntSize, hullSize):
-    print(cntSize, image_width/7)
+    
     return cntSize > (image_width / 7)
 
 
@@ -783,16 +783,18 @@ def calculateDistWPILib(cntHeight):
 
     networkTable.putNumber("Pixel height", PIX_HEIGHT)
 
-    print (PIX_HEIGHT, avg)  #print("The contour height is: ", cntHeight)
+    #print (PIX_HEIGHT, avg)  #print("The contour height is: ", cntHeight)
     TARGET_HEIGHT = 0.5
 
-    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 15.81 * 6))
+    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 22.864 * 8))
 
     #print("after 2: ", VIEWANGLE)
     #VIEWANGLE = math.radians(68.5)
     distance = ((TARGET_HEIGHT * image_height) / (2 * PIX_HEIGHT * math.tan(VIEWANGLE)))
     #distance = ((0.02) * distance ** 2) + ((69/ 100) * distance) + (47 / 50)
     #distance = ((-41/450) * distance ** 2) + ((149 / 100) * distance) - (9 / 25)
+
+    print(distance)
 
     return distance
 
@@ -1079,6 +1081,7 @@ if __name__ == "__main__":
             if switch != 1:
                 print("no processing")
                 switch = 1
+                networkTable.putBoolean("tapeDetected", False)
 
 
             #cap.autoExpose = True
