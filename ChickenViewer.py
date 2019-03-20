@@ -125,7 +125,7 @@ def findTargets(frame, mask):
 
 
     # Finds contours
-    _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
 
     contours = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
 
@@ -701,7 +701,7 @@ def load_images_from_folder(folder):
             images.append(img)
     return images
 
-images = load_images_from_folder("folder here")
+images = load_images_from_folder("Insert Folder")
 
 img = images[0]
 
@@ -736,8 +736,8 @@ while True:
                 threshold = threshold_video(lower_yellow, upper_yellow, boxBlur)
                 processed = findHatch(frame, threshold)
 
-
-    cv2.imshow(processed, 0)
+    cv2.imshow("raw", img)
+    cv2.imshow("processed", processed)
 
     cv2.waitKey(0)
 
