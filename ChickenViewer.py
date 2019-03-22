@@ -147,7 +147,7 @@ def findTargets(frame, mask):
 # Finds the balls from the masked image and displays them on original stream + network tables
 def findCargo(frame, mask):
     # Finds contours
-    _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
     # Take each frame
     # Gets the shape of video
     screenHeight, screenWidth, _ = frame.shape
@@ -165,7 +165,7 @@ def findCargo(frame, mask):
 
 def findHatch(frame, mask):
     # Finds contours
-    _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
     # Take each frame
     # Gets the shape of video
     screenHeight, screenWidth, _ = frame.shape
@@ -701,7 +701,8 @@ def load_images_from_folder(folder):
             images.append(img)
     return images
 
-images = load_images_from_folder("Insert Folder")
+#images = load_images_from_folder("C:/Users/abhij/OneDrive/Documents/2706 - 2019 Deep Space")
+images = load_images_from_folder("C:/Users/abhij/OneDrive/Documents/Ryerson2019/Ryerson-Robot-Images/rye_seq_06")
 
 img = images[0]
 

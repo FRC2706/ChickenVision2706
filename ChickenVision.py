@@ -57,7 +57,10 @@ class FPS:
     def elapsed(self):
         # return the total number of seconds between the start and
         # end interval
-        return (self._end - self._start).total_seconds()
+        if self._end != None:
+            return datetime.datetime.now() - self._start
+        else:
+            return datetime.datetime.now() - self._start
 
     def fps(self):
         # compute the (approximate) frames per second
@@ -176,8 +179,8 @@ ImageCounter = 0
 # Angles in radians
 
 # image size ratioed to 16:9
-image_width = 416
-image_height = 240
+image_width = 256
+image_height = 144
 
 # Lifecam 3000 from datasheet
 # Datasheet: https://dl2jx7zfbtwvr.cloudfront.net/specsheets/WEBC1010.pdf
@@ -682,15 +685,18 @@ def findTape(contours, image, centerX, centerY):
     # Check if there are targets seen
     if (len(targets) > 0):
         # pushes that it sees vision target to network tables
+        global fps
         networkTable.putBoolean("tapeDetected", True)
         # Sorts targets based on x coords to break any angle tie
         targets.sort(key=lambda x: math.fabs(x[0]))
         finalTarget = min(targets, key=lambda x: math.fabs(x[1]))
         # Puts the yaw on screen
         # Draws yaw of target + line where center of target is
-        cv2.putText(image, "Yaw: " + str(finalTarget[1]), (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6,
+        cv2.putText(image, "Yaw: " + str(finalTarget[1]), (40, 40), cv2.FONT_HERSHEY_COMPLEX, .5,
                     (255, 255, 255))
-        cv2.putText(image, "Dist: " + str(finalTarget[2]), (40, 90), cv2.FONT_HERSHEY_COMPLEX, .6,
+        cv2.putText(image, "Dist: " + str(finalTarget[2]), (40, 90), cv2.FONT_HERSHEY_COMPLEX, .5,
+                    (255, 255, 255))
+        cv2.putText(image, "Time: " + str(fps.elapsed()), (40, 140), cv2.FONT_HERSHEY_COMPLEX, .5,
                     (255, 255, 255))
         cv2.line(image, (finalTarget[0], screenHeight), (finalTarget[0], 0), (255, 0, 0), 2)
 
@@ -786,7 +792,7 @@ def calculateDistWPILib(cntHeight):
     #print (PIX_HEIGHT, avg)  #print("The contour height is: ", cntHeight)
     TARGET_HEIGHT = 0.5
 
-    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 22.864 * 8))
+    VIEWANGLE = math.atan((TARGET_HEIGHT * image_height) / (2 * 22.84 * 6))
 
     #print("after 2: ", VIEWANGLE)
     #VIEWANGLE = math.radians(68.5)
@@ -803,7 +809,7 @@ def calculateDistWPILib(cntHeight):
 # Link to further explanation: https://docs.google.com/presentation/d/1ediRsI-oR3-kwawFJZ34_ZTlQS2SDBLjZasjzZ-eXbQ/pub?start=false&loop=false&slide=id.g12c083cffa_0_298
 def calculateYaw(pixelX, centerX, hFocalLength):
     yaw = math.degrees(math.atan((pixelX - centerX) / hFocalLength))
-    return round(yaw)
+    return round(yaw*100) / 100
 
 
 # Link to further explanation: https://docs.google.com/presentation/d/1ediRsI-oR3-kwawFJZ34_ZTlQS2SDBLjZasjzZ-eXbQ/pub?start=false&loop=false&slide=id.g12c083cffa_0_298
@@ -1088,6 +1094,8 @@ if __name__ == "__main__":
             #cap.webcam.setExposureManual(50)
             #cap.webcam.setExposureManual(35)
             # cv2.putText(frame, "No Process", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
+            cv2.putText(frame, "Time: " + str(fps.elapsed()), (40, 140), cv2.FONT_HERSHEY_COMPLEX, .3,
+                        (255, 255, 255))
             processed = frame
 
         else:
