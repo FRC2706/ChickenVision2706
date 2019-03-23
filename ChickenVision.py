@@ -708,6 +708,10 @@ def findTape(contours, image, centerX, centerY):
 
             networkTable.putBoolean("Aligned", True)
 
+        else:
+
+            networkTable.putBoolean("Aligned", False)
+
         # pushes distance to network table
         networkTable.putNumber("distance", finalTarget[2])
 
@@ -993,7 +997,7 @@ if __name__ == "__main__":
     ntinst = NetworkTablesInstance.getDefault()
     # Name of network table - this is how it communicates with robot. IMPORTANT
     networkTable = NetworkTables.getTable('ChickenVision')
-    networkTable = NetworkTables.getTable('ChickenVision2')
+
 
     networkTableMatch = NetworkTables.getTable("FMSInfo")
 
@@ -1030,7 +1034,7 @@ if __name__ == "__main__":
     # TOTAL_FRAMES = 200;
     # loop forever
     networkTable.putBoolean("Driver", True)
-    networkTable.putBoolean("Tape", False)
+    networkTable.putBoolean("Tape", True)
     networkTable.putBoolean("Cargo", False)
     networkTable.putBoolean("Hatch", False)
     networkTable.putBoolean("WriteImages", True)
