@@ -416,10 +416,11 @@ if __name__ == "__main__":
         # Checks if you just want camera for driver (No processing), False by default
 
         if networkTable.getBoolean("Aligned", False):
-            cv2.putText(frame, "ALIGNED", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .8,
-                        (0, 255, 255))
+            pass
+        cv2.putText(frame, "ALIGNED", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .8,
+                        (0, 255, 255), 2)
 
-        cv2.putText(frame, "Time: " + str(fps.elapsed()), (40, 140), cv2.FONT_HERSHEY_COMPLEX, .5,
+        cv2.putText(frame, "Time: " + str(fps.elapsed()), (10, 140), cv2.FONT_HERSHEY_COMPLEX, .5,
                     (255, 255, 255))
 
         processed = frame
