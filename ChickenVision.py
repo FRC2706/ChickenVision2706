@@ -1034,7 +1034,7 @@ if __name__ == "__main__":
     # TOTAL_FRAMES = 200;
     # loop forever
     networkTable.putBoolean("Driver", True)
-    networkTable.putBoolean("Tape", True)
+    networkTable.putBoolean("Tape", False)
     networkTable.putBoolean("Cargo", False)
     networkTable.putBoolean("Hatch", False)
     networkTable.putBoolean("WriteImages", True)
@@ -1108,11 +1108,12 @@ if __name__ == "__main__":
                         (255, 255, 255))
 
             processed = frame
-
+            print(switch)
         else:
             # Checks if you just want camera for Tape processing , False by default
             # Switched to True, default is False
             switch = 0
+            print(switch)
             if (networkTable.getBoolean("Tape", True)):
                 if switch != 2:
                     print("finding tape")
