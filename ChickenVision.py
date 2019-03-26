@@ -703,14 +703,14 @@ def findTape(contours, image, centerX, centerY):
         currentAngleError = finalTarget[1]
         # pushes vision target angle to network tables
         networkTable.putNumber("tapeYaw", currentAngleError)
+        if finalTarget[2] < 10 and finalTarget[2] > 3:
+            if currentAngleError > -(10 - finalTarget[2]) and currentAngleError < (10 - finalTarget[2]):
+    
+                networkTable.putBoolean("Aligned", True)
 
-        if currentAngleError > -2 and currentAngleError < 2:
+            else:
 
-            networkTable.putBoolean("Aligned", True)
-
-        else:
-
-            networkTable.putBoolean("Aligned", False)
+                networkTable.putBoolean("Aligned", False)
 
         # pushes distance to network table
         networkTable.putNumber("distance", finalTarget[2])

@@ -43,11 +43,25 @@ ImageCounter = 0
 # Angles in radians
 
 # image size ratioed to 16:9
-image_width = 256
-image_height = 144
+
 
 # Lifecam 3000 from datasheet
 # Datasheet: https://dl2jx7zfbtwvr.cloudfront.net/specsheets/WEBC1010.pdf
+
+def load_images_from_folder(folder):
+    images = []
+    for filename in os.listdir(folder):
+        img = cv2.imread(os.path.join(folder,filename))
+        if img is not None:
+            images.append(img)
+    return images
+
+#images = load_images_from_folder("C:/Users/abhij/OneDrive/Documents/2706 - 2019 Deep Space")
+images = load_images_from_folder("C:/Users/abhij/OneDrive/Documents/2706 - 2019 Deep Space")
+
+image_height, image_width = images[0].shape[:2]
+print(image_height, image_width)
+
 diagonalView = math.radians(68.5)
 
 # 16:9 aspect ratio
@@ -75,8 +89,8 @@ upper_green = np.array([96, 255, 255])
 lower_orange = np.array([0, 193, 92])
 upper_orange = np.array([23, 255, 255])
 
-lower_yellow = np.array([36, 50, 80])
-upper_yellow = np.array([55, 120, 120])
+lower_yellow = np.array([20, 120, 120])
+upper_yellow = np.array([46, 238, 230])
 
 switch = 1
 
@@ -684,25 +698,22 @@ cameraConfigs = []
 
 currentImg = 0
 
+def draw_circle(event,x,y,flags,param):
+
+
+    if event == cv2.EVENT_LBUTTONDOWN:
+        green = np.uint8([[[img[y, x, 0], img[y, x, 1], img[y, x, 2]]]])
+        print(img[y, x, 2], img[y, x, 1], img[y, x, 0], cv2.cvtColor(green,cv2.COLOR_BGR2HSV))
 
 
 Driver = False
-Tape = True
+Tape = False
 Cargo = False
-Hatch = False
+Hatch = True
 
 
 
-def load_images_from_folder(folder):
-    images = []
-    for filename in os.listdir(folder):
-        img = cv2.imread(os.path.join(folder,filename))
-        if img is not None:
-            images.append(img)
-    return images
 
-#images = load_images_from_folder("C:/Users/abhij/OneDrive/Documents/2706 - 2019 Deep Space")
-images = load_images_from_folder("C:/Users/abhij/OneDrive/Documents/Ryerson2019/Ryerson-Robot-Images/rye_seq_06")
 
 img = images[0]
 
@@ -734,11 +745,12 @@ while True:
 
                 boxBlur = blurImg(frame, yellow_blur)
                 # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
-                threshold = threshold_video(lower_yellow, upper_yellow, boxBlur)
+                threshold = threshold_video(lower_yellow, upper_yellow, frame)
                 processed = findHatch(frame, threshold)
 
     cv2.imshow("raw", img)
     cv2.imshow("processed", processed)
+    cv2.setMouseCallback('raw', draw_circle)
 
     cv2.waitKey(0)
 
