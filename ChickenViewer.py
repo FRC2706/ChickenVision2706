@@ -708,6 +708,7 @@ def draw_circle(event,x,y,flags,param):
 
 Driver = False
 Tape = False
+
 Cargo = False
 Hatch = True
 

@@ -703,14 +703,17 @@ def findTape(contours, image, centerX, centerY):
         currentAngleError = finalTarget[1]
         # pushes vision target angle to network tables
         networkTable.putNumber("tapeYaw", currentAngleError)
-        if finalTarget[2] < 10 and finalTarget[2] > 3:
+        if finalTarget[2] < 6 and finalTarget[2] > 3:
             if currentAngleError > -(10 - finalTarget[2]) and currentAngleError < (10 - finalTarget[2]):
-    
+
                 networkTable.putBoolean("Aligned", True)
 
             else:
 
                 networkTable.putBoolean("Aligned", False)
+        else:
+            networkTable.putBoolean("Aligned", False)
+
 
         # pushes distance to network table
         networkTable.putNumber("distance", finalTarget[2])
@@ -1033,8 +1036,8 @@ if __name__ == "__main__":
     fps = FPS().start()
     # TOTAL_FRAMES = 200;
     # loop forever
-    networkTable.putBoolean("Driver", True)
-    networkTable.putBoolean("Tape", False)
+    networkTable.putBoolean("Driver", False)
+    networkTable.putBoolean("Tape", True)
     networkTable.putBoolean("Cargo", False)
     networkTable.putBoolean("Hatch", False)
     networkTable.putBoolean("WriteImages", True)
@@ -1085,71 +1088,47 @@ if __name__ == "__main__":
             continue
         # Checks if you just want camera for driver (No processing), False by default
 
-        if start:
-            if switched:
-                networkTable.putBoolean("Driver", True)
-            elif not switched:
-                networkTable.putBoolean("Driver", False)
-                switched = True
-            if networkTable.getBoolean("Driver", True):
-                start = False
 
-        if (networkTable.getBoolean("Driver", True)):
-            if switch != 1:
-                print("no processing")
-                switch = 1
-                networkTable.putBoolean("tapeDetected", False)
 
-            if networkTable.getBoolean("Aligned", False):
-                cv2.putText(frame, "ALIGNED", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .8,
-                            (255, 0, 0))
 
-            cv2.putText(frame, "Time: " + str(fps.elapsed()), (40, 140), cv2.FONT_HERSHEY_COMPLEX, .5,
-                        (255, 255, 255))
+        switch = 0
 
-            processed = frame
-            print(switch)
+        if (networkTable.getBoolean("Tape", True)):
+            if switch != 2:
+                print("finding tape")
+            switch = 2
+            # Lowers exposure to 0
+            #cap.autoExpose = False
+            #cap.webcam.setExposureManual(50)
+            #cap.webcam.setExposureManual(20)
+            #boxBlur = blurImg(frame, green_blur)
+            # cv2.putText(frame, "Find Tape", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
+            threshold = threshold_video(lower_green, upper_green, frame)
+            processed = findTargets(frame, threshold)
+
         else:
-            # Checks if you just want camera for Tape processing , False by default
-            # Switched to True, default is False
-            switch = 0
-            print(switch)
-            if (networkTable.getBoolean("Tape", True)):
-                if switch != 2:
-                    print("finding tape")
-                switch = 2
-                # Lowers exposure to 0
-                #cap.autoExpose = False
-                #cap.webcam.setExposureManual(50)
-                #cap.webcam.setExposureManual(20)
-                #boxBlur = blurImg(frame, green_blur)
-                # cv2.putText(frame, "Find Tape", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
-                threshold = threshold_video(lower_green, upper_green, frame)
-                processed = findTargets(frame, threshold)
-
-            else:
-                if (networkTable.getBoolean("Cargo", True)):
-                    # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
-                    #if (networkTable.getBoolean("Cargo", True)):
-                    if switch != 3:
-                        print("find cargo")
-                    switch = 3
-                    #cap.autoExpose = True
-                    boxBlur = blurImg(frame, orange_blur)
-                    # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
-                    threshold = threshold_video(lower_orange, upper_orange, boxBlur)
-                    processed = findCargo(frame, threshold)
-                elif (networkTable.getBoolean("Hatch", True)):
-                    # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
-                    #if (networkTable.getBoolean("Cargo", True)):
-                    if switch != 4:
-                        print("find hatch")
-                    switch = 4
-                    #cap.autoExpose = True
-                    boxBlur = blurImg(frame, yellow_blur)
-                    # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
-                    threshold = threshold_video(lower_yellow, upper_yellow, boxBlur)
-                    processed = findHatch(frame, threshold)
+            if (networkTable.getBoolean("Cargo", True)):
+                # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
+                #if (networkTable.getBoolean("Cargo", True)):
+                if switch != 3:
+                    print("find cargo")
+                switch = 3
+                #cap.autoExpose = True
+                boxBlur = blurImg(frame, orange_blur)
+                # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
+                threshold = threshold_video(lower_orange, upper_orange, boxBlur)
+                processed = findCargo(frame, threshold)
+            elif (networkTable.getBoolean("Hatch", True)):
+                # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
+                #if (networkTable.getBoolean("Cargo", True)):
+                if switch != 4:
+                    print("find hatch")
+                switch = 4
+                #cap.autoExpose = True
+                boxBlur = blurImg(frame, yellow_blur)
+                # cv2.putText(frame, "Find Cargo", (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6, (255, 255, 255))
+                threshold = threshold_video(lower_yellow, upper_yellow, boxBlur)
+                processed = findHatch(frame, threshold)
 
         # Puts timestamp of camera on netowrk tables
         networkTable.putNumber("VideoTimestamp", timestamp)
