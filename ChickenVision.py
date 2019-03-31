@@ -260,6 +260,7 @@ def threshold_video(lower_color, upper_color, blur):
             matchNumber = matchNumberDefault
         cv2.imwrite('/mnt/VisionImages/visionImg-' + str(matchNumber) + "-" + str(ImageCounter) + '_mask.png',
                     combined_mask)
+        ImageCounter = ImageCounter + 1
     return combined_mask
 
 
