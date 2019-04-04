@@ -163,8 +163,8 @@ ImageCounter = 0
 # Angles in radians
 
 # image size ratioed to 16:9
-image_width = 416
-image_height = 240
+image_width = 160
+image_height = 120
 
 # Lifecam 3000 from datasheet
 # Datasheet: https://dl2jx7zfbtwvr.cloudfront.net/specsheets/WEBC1010.pdf
@@ -402,7 +402,7 @@ if __name__ == "__main__":
                         img)
         # Uncomment if camera is mounted upside down
         if networkTable.getBoolean("TopCamera", False):
-            frame = flipImage(img)
+            pass
         else:
             frame = img
         # Comment out if camera is mounted upside down
@@ -423,7 +423,10 @@ if __name__ == "__main__":
         cv2.putText(frame, "Time: " + str(fps.elapsed()), (10, 140), cv2.FONT_HERSHEY_COMPLEX, .5,
                     (255, 255, 255))
 
-        processed = frame
+
+
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 1]
+        processed, result = cv2.imencode('.jpg', frame, encode_param)
 
 
         if (networkTable.getBoolean("WriteImages", True)):
@@ -432,12 +435,12 @@ if __name__ == "__main__":
                 matchNumber = networkTableMatch.getNumber("MatchNumber", 0)
                 if matchNumber == 0:
                     matchNumber = matchNumberDefault
-                cv2.imwrite('/mnt/VisionImages/visionImg-' + str(matchNumber) + "-" + str(ImageCounter) + '_Proc.png',
-                            processed)
-                frameStop = 0
-                ImageCounter = ImageCounter + 1
-                if (ImageCounter == 10000):
-                    ImageCounter = 0
+        cv2.imwrite('C:/Users/abhij/OneDrive/Documents/2706test-' + str(matchNumber) + "-" + str(ImageCounter) + '_Proc.png',
+                    processed)
+        frameStop = 0
+        ImageCounter = ImageCounter + 1
+        if (ImageCounter == 10000):
+            ImageCounter = 0
 
         # networkTable.putBoolean("Driver", True)
         streamViewer.frame = processed
