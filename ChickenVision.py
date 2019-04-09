@@ -1004,6 +1004,8 @@ if __name__ == "__main__":
 
     networkTableMatch = NetworkTables.getTable("FMSInfo")
 
+    networkTableTime = NetworkTables.getTable("SmartDashboard")
+
     if server:
         print("Setting up NetworkTables server")
         ntinst.startServer()
@@ -1053,6 +1055,10 @@ if __name__ == "__main__":
     processed = 0
 
     while True:
+
+        if networkTableTime.getNumber("Match Time", 1) == 0:
+            networkTable.putBoolean("WriteImages", False)
+
         if networkTable.getBoolean("TopCamera", False):
             currentCam = 1
         else:

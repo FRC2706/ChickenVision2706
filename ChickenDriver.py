@@ -423,12 +423,7 @@ if __name__ == "__main__":
         cv2.putText(frame, "Time: " + str(fps.elapsed()), (10, 140), cv2.FONT_HERSHEY_COMPLEX, .5,
                     (255, 255, 255))
 
-
-
-        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 1]
-        processed, result = cv2.imencode('.jpg', frame, encode_param)
-
-
+        processed = frame
         if (networkTable.getBoolean("WriteImages", True)):
             frameStop = frameStop + 1
             if frameStop == 15:
